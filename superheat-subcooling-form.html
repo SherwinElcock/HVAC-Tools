@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Superheat / Subcooling Form</title>
+<style>
+  :root{
+    --bg:#0d1210;
+    --panel:#141b18;
+    --panel-line:#26332e;
+    --amber:#e8a33d;
+    --amber-dim:#8a6428;
+    --green:#5ec98a;
+    --red:#e6584f;
+    --suction-blue:#4a9fe8;
+    --liquid-red:#e05a52;
+    --text:#e9ede9;
+    --text-dim:#8fa096;
+    --mono: 'SFMono-Regular', Consolas, 'Courier New', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    background-image:
+      radial-gradient(circle at 50% 0%, rgba(232,163,61,0.06), transparent 60%);
+    color:var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding:16px;
+    padding-bottom:60px;
+  }
+  .wrap{max-width:520px;margin:0 auto;}
+
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:2px solid var(--panel-line);
+    padding-bottom:12px;
+    margin-bottom:18px;
+  }
+  header h1{
+    font-size:18px;
+    letter-spacing:0.06em;
+    text-transform:uppercase;
+    margin:0;
+    color:var(--amber);
+  }
+  header span{
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--text-dim);
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:6px;
+    padding:16px;
+    margin-bottom:14px;
+    position:relative;
+  }
+  .panel-label{
+    position:absolute;
+    top:-9px;
+    left:12px;
+    background:var(--bg);
+    padding:0 6px;
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--amber-dim);
+  }
+
+  .panel.suction{border-left:3px solid var(--suction-blue);}
+  .panel.suction .panel-label{color:var(--suction-blue);}
+  .panel.suction input[type=number]{border-color:rgba(74,159,232,0.35);}
+  .panel.suction input[type=number]:focus{border-color:var(--suction-blue);}
+
+  .panel.liquid{border-left:3px solid var(--liquid-red);}
+  .panel.liquid .panel-label{color:var(--liquid-red);}
+  .panel.liquid input[type=number]{border-color:rgba(224,90,82,0.35);}
+  .panel.liquid input[type=number]:focus{border-color:var(--liquid-red);}
+
+  .row{display:flex;gap:10px;margin-bottom:10px;}
+  .row:last-child{margin-bottom:0;}
+  .field{flex:1;min-width:0;}
+  label{
+    display:block;
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--text-dim);
+    margin-bottom:5px;
+  }
+  input[type=text], input[type=number]{
+    width:100%;
+    background:#0a0f0d;
+    border:1px solid var(--panel-line);
+    border-radius:4px;
+    color:var(--text);
+    font-family:var(--mono);
+    font-size:16px;
+    padding:10px 10px;
+    -moz-appearance:textfield;
+  }
+  input:focus{outline:none;border-color:var(--amber-dim);}
+
+  .formula{
+    font-family:var(--mono);
+    font-size:11.5px;
+    color:var(--text-dim);
+    background:#0a0f0d;
+    border:1px dashed var(--panel-line);
+    border-radius:4px;
+    padding:8px 10px;
+    margin-bottom:12px;
+    line-height:1.5;
+  }
+
+  .target-row{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:12px;
+    font-size:11px;
+    color:var(--text-dim);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+  }
+  .target-row input{
+    width:56px;
+    padding:6px 8px;
+    font-size:13px;
+    text-align:center;
+  }
+  .target-row .to{color:var(--text-dim);text-transform:none;font-family:var(--mono);}
+
+  .readout{
+    display:flex;
+    gap:10px;
+  }
+  .gauge{
+    flex:1;
+    background:#0a0f0d;
+    border:1px solid var(--panel-line);
+    border-radius:5px;
+    padding:14px 12px;
+    text-align:center;
+  }
+  .gauge .g-label{
+    font-size:10px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--text-dim);
+    margin-bottom:4px;
+  }
+  .gauge .g-value{
+    font-family:var(--mono);
+    font-size:28px;
+    font-weight:600;
+    color:var(--text);
+  }
+  .gauge.ok .g-value{color:var(--green);}
+  .gauge.bad .g-value{color:var(--red);}
+  .gauge .g-sub{
+    font-family:var(--mono);
+    font-size:10px;
+    color:var(--text-dim);
+    margin-top:4px;
+  }
+
+  .status-strip{
+    margin-top:12px;
+    font-family:var(--mono);
+    font-size:12px;
+    padding:8px 10px;
+    border-radius:4px;
+    display:none;
+    align-items:center;
+    gap:8px;
+  }
+  .status-strip.show{display:flex;}
+  .status-strip.ok{background:rgba(94,201,138,0.1);border:1px solid rgba(94,201,138,0.35);color:var(--green);}
+  .status-strip.bad{background:rgba(230,88,79,0.1);border:1px solid rgba(230,88,79,0.4);color:var(--red);}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .dot.ok{background:var(--green);}
+  .dot.bad{background:var(--red);}
+
+  #notes{
+    border:1px solid var(--red);
+    background:rgba(230,88,79,0.07);
+    border-radius:6px;
+    padding:14px;
+    display:none;
+  }
+  #notes.show{display:block;}
+  #notes .panel-label{color:var(--red);background:var(--bg);}
+  #notes h2{
+    margin:0 0 8px 0;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--red);
+  }
+  #notes ul{margin:0;padding-left:18px;}
+  #notes li{
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--text);
+    margin-bottom:6px;
+    line-height:1.4;
+  }
+  #notes li:last-child{margin-bottom:0;}
+
+  .allgood{
+    border:1px solid var(--green);
+    background:rgba(94,201,138,0.07);
+    border-radius:6px;
+    padding:12px 14px;
+    display:none;
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--green);
+  }
+  .allgood.show{display:block;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Superheat / Subcooling</h1>
+    <span id="clock"></span>
+  </header>
+
+  <!-- JOB INFO -->
+  <div class="panel">
+    <div class="panel-label">Job Info</div>
+    <div class="row">
+      <div class="field">
+        <label for="location">Location</label>
+        <input type="text" id="location" placeholder="Site / address">
+      </div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="equipment">Equipment</label>
+        <input type="text" id="equipment" placeholder="Unit ID / model">
+      </div>
+    </div>
+  </div>
+
+  <!-- SUPERHEAT -->
+  <div class="panel suction">
+    <div class="panel-label">Superheat (Suction Side)</div>
+    <div class="formula">superheat = suction line temp (clamp) &minus; suction saturation temp (gauge)</div>
+    <div class="row">
+      <div class="field">
+        <label for="suctionGauge">Suction Gauge Temp (&deg;F, sat.)</label>
+        <input type="number" id="suctionGauge" inputmode="decimal" placeholder="">
+      </div>
+      <div class="field">
+        <label for="suctionClamp">Suction Line Clamp Temp (&deg;F)</label>
+        <input type="number" id="suctionClamp" inputmode="decimal" placeholder="">
+      </div>
+    </div>
+    <div class="target-row">
+      <span>Target range</span>
+      <input type="number" id="shLow" value="8">
+      <span class="to">&ndash;</span>
+      <input type="number" id="shHigh" value="12">
+      <span>&deg;F</span>
+    </div>
+    <div class="readout">
+      <div class="gauge" id="shBox">
+        <div class="g-label">Superheat</div>
+        <div class="g-value" id="shValue">—</div>
+        <div class="g-sub" id="shSub">&nbsp;</div>
+      </div>
+    </div>
+    <div class="status-strip" id="shStrip">
+      <span class="dot"></span><span id="shStripText"></span>
+    </div>
+  </div>
+
+  <!-- SUBCOOLING -->
+  <div class="panel liquid">
+    <div class="panel-label">Subcooling (Liquid Line)</div>
+    <div class="formula">subcooling = liquid saturation temp (gauge) &minus; liquid line temp (clamp)</div>
+    <div class="row">
+      <div class="field">
+        <label for="liquidGauge">Liquid Gauge Temp (&deg;F, sat.)</label>
+        <input type="number" id="liquidGauge" inputmode="decimal" placeholder="">
+      </div>
+      <div class="field">
+        <label for="liquidClamp">Liquid Line Clamp Temp (&deg;F)</label>
+        <input type="number" id="liquidClamp" inputmode="decimal" placeholder="">
+      </div>
+    </div>
+    <div class="target-row">
+      <span>Target range</span>
+      <input type="number" id="scLow" value="10">
+      <span class="to">&ndash;</span>
+      <input type="number" id="scHigh" value="15">
+      <span>&deg;F</span>
+    </div>
+    <div class="readout">
+      <div class="gauge" id="scBox">
+        <div class="g-label">Subcooling</div>
+        <div class="g-value" id="scValue">—</div>
+        <div class="g-sub" id="scSub">&nbsp;</div>
+      </div>
+    </div>
+    <div class="status-strip" id="scStrip">
+      <span class="dot"></span><span id="scStripText"></span>
+    </div>
+  </div>
+
+  <!-- NOTES -->
+  <div id="notes">
+    <div class="panel-label">Out of Range</div>
+    <h2>Notes</h2>
+    <ul id="notesList"></ul>
+  </div>
+
+  <div class="allgood" id="allgood">&#10003; All readings within target range.</div>
+
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+
+  function clock(){
+    const now = new Date();
+    $('clock').textContent = now.toLocaleDateString(undefined,{month:'2-digit',day:'2-digit',year:'numeric'});
+  }
+  clock();
+
+  function fmt(n){
+    if (n === null || isNaN(n)) return '—';
+    const r = Math.round(n*10)/10;
+    return r + '\u00b0';
+  }
+
+  function evaluate(){
+    const notes = [];
+
+    // ---- Superheat ----
+    const suctionGauge = parseFloat($('suctionGauge').value);
+    const suctionClamp = parseFloat($('suctionClamp').value);
+    const shLow = parseFloat($('shLow').value);
+    const shHigh = parseFloat($('shHigh').value);
+    const shHasInputs = !isNaN(suctionGauge) && !isNaN(suctionClamp);
+
+    let shOK = null;
+    if (shHasInputs){
+      const sh = suctionClamp - suctionGauge;
+      shOK = (isNaN(shLow) || sh >= shLow) && (isNaN(shHigh) || sh <= shHigh);
+
+      $('shValue').textContent = fmt(sh);
+      $('shSub').textContent = shOK ? 'within target' : 'outside target';
+      $('shBox').classList.remove('ok','bad');
+      $('shBox').classList.add(shOK ? 'ok':'bad');
+
+      const strip = $('shStrip');
+      strip.classList.add('show');
+      strip.classList.remove('ok','bad');
+      strip.classList.add(shOK ? 'ok':'bad');
+      strip.querySelector('.dot').classList.remove('ok','bad');
+      strip.querySelector('.dot').classList.add(shOK ? 'ok':'bad');
+      $('shStripText').textContent = shOK
+        ? 'Superheat in range.'
+        : `Superheat out of range (target ${fmt(shLow)}\u2013${fmt(shHigh)}).`;
+
+      if (!shOK){
+        const dir = sh < shLow ? 'low' : 'high';
+        notes.push(`Superheat: ${fmt(sh)} (target ${fmt(shLow)}\u2013${fmt(shHigh)}). Running ${dir}. ${dir==='low' ? 'Check for overcharge or metering device overfeeding.' : 'Check for undercharge, restriction, or low airflow.'}`);
+      }
+    } else {
+      $('shValue').textContent = '—';
+      $('shSub').innerHTML = '&nbsp;';
+      $('shBox').classList.remove('ok','bad');
+      $('shStrip').classList.remove('show');
+    }
+
+    // ---- Subcooling ----
+    const liquidGauge = parseFloat($('liquidGauge').value);
+    const liquidClamp = parseFloat($('liquidClamp').value);
+    const scLow = parseFloat($('scLow').value);
+    const scHigh = parseFloat($('scHigh').value);
+    const scHasInputs = !isNaN(liquidGauge) && !isNaN(liquidClamp);
+
+    let scOK = null;
+    if (scHasInputs){
+      const sc = liquidGauge - liquidClamp;
+      scOK = (isNaN(scLow) || sc >= scLow) && (isNaN(scHigh) || sc <= scHigh);
+
+      $('scValue').textContent = fmt(sc);
+      $('scSub').textContent = scOK ? 'within target' : 'outside target';
+      $('scBox').classList.remove('ok','bad');
+      $('scBox').classList.add(scOK ? 'ok':'bad');
+
+      const strip = $('scStrip');
+      strip.classList.add('show');
+      strip.classList.remove('ok','bad');
+      strip.classList.add(scOK ? 'ok':'bad');
+      strip.querySelector('.dot').classList.remove('ok','bad');
+      strip.querySelector('.dot').classList.add(scOK ? 'ok':'bad');
+      $('scStripText').textContent = scOK
+        ? 'Subcooling in range.'
+        : `Subcooling out of range (target ${fmt(scLow)}\u2013${fmt(scHigh)}).`;
+
+      if (!scOK){
+        const dir = sc < scLow ? 'low' : 'high';
+        notes.push(`Subcooling: ${fmt(sc)} (target ${fmt(scLow)}\u2013${fmt(scHigh)}). Running ${dir}. ${dir==='low' ? 'Check for undercharge or restriction before the gauge port.' : 'Check for overcharge or condenser airflow restriction.'}`);
+      }
+    } else {
+      $('scValue').textContent = '—';
+      $('scSub').innerHTML = '&nbsp;';
+      $('scBox').classList.remove('ok','bad');
+      $('scStrip').classList.remove('show');
+    }
+
+    // ---- Notes panel ----
+    const notesPanel = $('notes');
+    const notesList = $('notesList');
+    const allgood = $('allgood');
+    notesList.innerHTML = '';
+
+    if (notes.length){
+      notes.forEach(n=>{
+        const li = document.createElement('li');
+        li.textContent = n;
+        notesList.appendChild(li);
+      });
+      notesPanel.classList.add('show');
+      allgood.classList.remove('show');
+    } else {
+      notesPanel.classList.remove('show');
+      if (shHasInputs && scHasInputs){
+        allgood.classList.add('show');
+      } else {
+        allgood.classList.remove('show');
+      }
+    }
+  }
+
+  ['suctionGauge','suctionClamp','shLow','shHigh','liquidGauge','liquidClamp','scLow','scHigh'].forEach(id=>{
+    $(id).addEventListener('input', evaluate);
+  });
+
+  evaluate();
+</script>
+</body>
+</html>
