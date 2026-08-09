@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Superheat &amp; Subcooling Diagnostic</title>
+<style>
+  :root{
+    --bg: #0f1720;
+    --panel: #16212c;
+    --panel-line: #26333f;
+    --blue: #4fa3e0;   /* low side gauge blue */
+    --blue-dim: #2c5570;
+    --red: #e0664f;    /* high side gauge red */
+    --red-dim: #703d2c;
+    --text: #e9edf1;
+    --text-dim: #93a3b0;
+    --mono: 'SF Mono', 'Roboto Mono', Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+  .wrap{
+    max-width:640px;
+    margin:0 auto;
+    padding:28px 18px 60px;
+  }
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin-bottom:6px;
+  }
+  h1{
+    font-size:24px;
+    font-weight:700;
+    margin:0 0 4px;
+    letter-spacing:-0.01em;
+  }
+  .sub{
+    color:var(--text-dim);
+    font-size:14px;
+    margin:0 0 26px;
+    line-height:1.5;
+  }
+
+  /* option list */
+  .options{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:22px;
+  }
+  .option{
+    position:relative;
+    border:1px solid var(--panel-line);
+    background:var(--panel);
+    border-radius:10px;
+    padding:14px 12px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .option:active{ transform:scale(0.98); }
+  .option input{
+    position:absolute;
+    opacity:0;
+    inset:0;
+    cursor:pointer;
+    margin:0;
+  }
+  .option .side-tag{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    display:block;
+    margin-bottom:6px;
+  }
+  .option.side-low .side-tag{ color:var(--blue); }
+  .option.side-high .side-tag{ color:var(--red); }
+  .option .label{
+    font-size:16px;
+    font-weight:600;
+    line-height:1.25;
+  }
+  .option .arrow{
+    font-family:var(--mono);
+    font-size:13px;
+    color:var(--text-dim);
+  }
+  .option.side-low.selected{
+    border-color:var(--blue);
+    background:linear-gradient(180deg, rgba(79,163,224,0.14), rgba(79,163,224,0.05));
+  }
+  .option.side-high.selected{
+    border-color:var(--red);
+    background:linear-gradient(180deg, rgba(224,102,79,0.14), rgba(224,102,79,0.05));
+  }
+  .option.side-low.selected .arrow{ color:var(--blue); }
+  .option.side-high.selected .arrow{ color:var(--red); }
+
+  /* result panel */
+  .result{
+    border-radius:12px;
+    border:1px solid var(--panel-line);
+    background:var(--panel);
+    overflow:hidden;
+    min-height:180px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .result.side-low{ border-color:var(--blue-dim); }
+  .result.side-high{ border-color:var(--red-dim); }
+
+  .placeholder{
+    color:var(--text-dim);
+    font-size:14px;
+    text-align:center;
+    padding:40px 20px;
+  }
+
+  .result-inner{ display:none; width:100%; }
+  .result-inner.active{ display:block; animation: fade .25s ease; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .result-header{
+    padding:16px 18px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--panel-line);
+  }
+  .result-header .name{
+    font-size:17px;
+    font-weight:700;
+  }
+  .result-header .badge{
+    font-family:var(--mono);
+    font-size:10px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:3px 8px;
+    border-radius:20px;
+    border:1px solid currentColor;
+  }
+  .side-low .badge{ color:var(--blue); }
+  .side-high .badge{ color:var(--red); }
+
+  .block{
+    padding:16px 18px;
+  }
+  .block + .block{
+    border-top:1px solid var(--panel-line);
+  }
+  .block h3{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--text-dim);
+    margin:0 0 10px;
+  }
+  .block ul{
+    margin:0;
+    padding:0 0 0 18px;
+    line-height:1.55;
+    font-size:14.5px;
+  }
+  .block li{ margin-bottom:7px; }
+  .block li:last-child{ margin-bottom:0; }
+
+  footer{
+    margin-top:26px;
+    font-size:12px;
+    color:var(--text-dim);
+    line-height:1.5;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">Refrigerant Charge Diagnostics</div>
+  <h1>Superheat &amp; Subcooling</h1>
+  <p class="sub">Select a symptom to see likely causes and the resolution steps.</p>
+
+  <div class="options">
+    <label class="option side-high" id="opt-hs">
+      <input type="radio" name="symptom" value="hs">
+      <span class="side-tag">Suction line</span>
+      <span class="label">High Superheat</span>
+      <span class="arrow">↑</span>
+    </label>
+
+    <label class="option side-high" id="opt-ls">
+      <input type="radio" name="symptom" value="ls">
+      <span class="side-tag">Suction line</span>
+      <span class="label">Low Superheat</span>
+      <span class="arrow">↓</span>
+    </label>
+
+    <label class="option side-low" id="opt-hc">
+      <input type="radio" name="symptom" value="hc">
+      <span class="side-tag">Liquid line</span>
+      <span class="label">High Subcooling</span>
+      <span class="arrow">↑</span>
+    </label>
+
+    <label class="option side-low" id="opt-lc">
+      <input type="radio" name="symptom" value="lc">
+      <span class="side-tag">Liquid line</span>
+      <span class="label">Low Subcooling</span>
+      <span class="arrow">↓</span>
+    </label>
+  </div>
+
+  <div class="result" id="result">
+    <div class="placeholder" id="placeholder">Pick one of the four options above to see causes and resolution.</div>
+
+    <div class="result-inner side-high" id="content-hs">
+      <div class="result-header">
+        <span class="name">High Superheat</span>
+        <span class="badge">suction line</span>
+      </div>
+      <div class="block">
+        <h3>Likely Causes</h3>
+        <ul>
+          <li>Low refrigerant charge / undercharge</li>
+          <li>Refrigerant leak</li>
+          <li>Restriction in the liquid line, filter drier, or metering device starving the evaporator</li>
+          <li>Excess evaporator airflow or high heat load relative to charge</li>
+          <li>Metering device undersized or partially clogged</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Resolution</h3>
+        <ul>
+          <li>Leak search the system; repair any leaks found</li>
+          <li>Recover and recharge to manufacturer's target superheat/subcooling</li>
+          <li>Replace filter drier and clear any line restriction</li>
+          <li>Confirm evaporator airflow and load are within design spec</li>
+          <li>Verify metering device is correctly sized and functioning</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="result-inner side-high" id="content-ls">
+      <div class="result-header">
+        <span class="name">Low Superheat</span>
+        <span class="badge">suction line</span>
+      </div>
+      <div class="block">
+        <h3>Likely Causes</h3>
+        <ul>
+          <li>Overcharged system</li>
+          <li>Low evaporator airflow — dirty filter/coil, weak blower, blocked ductwork</li>
+          <li>TXV stuck open or overfeeding</li>
+          <li>Oversized fixed orifice / metering device</li>
+          <li>Risk of evaporator flooding and liquid returning to the compressor</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Resolution</h3>
+        <ul>
+          <li>Recover excess refrigerant to correct the charge</li>
+          <li>Clean coil and filter; verify blower speed and duct airflow</li>
+          <li>Inspect and replace a faulty TXV</li>
+          <li>Confirm correct metering device size for the system</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="result-inner side-low" id="content-hc">
+      <div class="result-header">
+        <span class="name">High Subcooling</span>
+        <span class="badge">liquid line</span>
+      </div>
+      <div class="block">
+        <h3>Likely Causes</h3>
+        <ul>
+          <li>Overcharged system</li>
+          <li>Restriction downstream of the condenser (kinked line, clogged filter drier) backing liquid up in the condenser</li>
+          <li>Non-condensables (air/moisture) in the system</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Resolution</h3>
+        <ul>
+          <li>Recover refrigerant to bring charge back to spec</li>
+          <li>Locate and clear the restriction; replace the filter drier</li>
+          <li>Evacuate the system properly and recharge to remove non-condensables</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="result-inner side-low" id="content-lc">
+      <div class="result-header">
+        <span class="name">Low Subcooling</span>
+        <span class="badge">liquid line</span>
+      </div>
+      <div class="block">
+        <h3>Likely Causes</h3>
+        <ul>
+          <li>Undercharged system</li>
+          <li>Refrigerant leak</li>
+          <li>Insufficient condenser capacity — dirty coil, restricted airflow, weak condenser fan</li>
+          <li>High ambient temperature limiting condensing</li>
+        </ul>
+      </div>
+      <div class="block">
+        <h3>Resolution</h3>
+        <ul>
+          <li>Leak search the system; repair any leaks found</li>
+          <li>Recharge to manufacturer's target subcooling</li>
+          <li>Clean the condenser coil and confirm proper airflow clearance</li>
+          <li>Verify condenser fan motor operation</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>Fixed-orifice / general reference. Always confirm against the equipment's rated superheat/subcooling target and manufacturer data.</footer>
+</div>
+
+<script>
+  const radios = document.querySelectorAll('input[name="symptom"]');
+  const options = document.querySelectorAll('.option');
+  const result = document.getElementById('result');
+  const placeholder = document.getElementById('placeholder');
+  const panels = document.querySelectorAll('.result-inner');
+  const map = { hs:'content-hs', ls:'content-ls', hc:'content-hc', lc:'content-lc' };
+  const sideMap = { hs:'side-high', ls:'side-high', hc:'side-low', lc:'side-low' };
+
+  radios.forEach(r => {
+    r.addEventListener('change', () => {
+      options.forEach(o => o.classList.remove('selected'));
+      document.getElementById('opt-' + r.value).classList.add('selected');
+
+      panels.forEach(p => p.classList.remove('active'));
+      placeholder.style.display = 'none';
+
+      document.getElementById(map[r.value]).classList.add('active');
+
+      result.classList.remove('side-high', 'side-low');
+      result.classList.add(sideMap[r.value]);
+    });
+  });
+</script>
+</body>
+</html>
