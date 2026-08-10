@@ -306,6 +306,7 @@
     <div class="meta">
       <input type="text" placeholder="Customer / address" id="fld-customer">
       <input type="text" placeholder="Equipment (make/model)" id="fld-equipment">
+      <input type="text" placeholder="Refrigerant type (e.g. R-410A)" id="fld-refrigerant">
       <input type="text" placeholder="Date" id="fld-date">
       <input type="text" placeholder="Tech name" id="fld-tech">
     </div>
@@ -392,6 +393,14 @@ const DATA = [
 const state = {}; // id -> 'pass' | 'fail' | 'na'
 let totalItems = 0;
 
+function todayStr(){
+  const d = new Date();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${mm}/${dd}/${d.getFullYear()}`;
+}
+document.getElementById('fld-date').value = todayStr();
+
 function buildChecklist(){
   const root = document.getElementById('checklist');
   root.innerHTML = '';
@@ -475,7 +484,8 @@ document.getElementById('resetBtn').addEventListener('click', () => {
   document.getElementById('notes').value = '';
   document.getElementById('fld-customer').value = '';
   document.getElementById('fld-equipment').value = '';
-  document.getElementById('fld-date').value = '';
+  document.getElementById('fld-refrigerant').value = '';
+  document.getElementById('fld-date').value = todayStr();
   document.getElementById('fld-tech').value = '';
   buildChecklist();
 });
@@ -491,6 +501,7 @@ function esc(s){
 function buildReport(){
   const customer = document.getElementById('fld-customer').value.trim();
   const equipment = document.getElementById('fld-equipment').value.trim();
+  const refrigerant = document.getElementById('fld-refrigerant').value.trim();
   const date = document.getElementById('fld-date').value.trim();
   const tech = document.getElementById('fld-tech').value.trim();
   const notes = document.getElementById('notes').value.trim();
@@ -525,6 +536,7 @@ function buildReport(){
     <div class="report-meta">
       <div><span>Customer: </span>${esc(customer) || '—'}</div>
       <div><span>Equipment: </span>${esc(equipment) || '—'}</div>
+      <div><span>Refrigerant: </span>${esc(refrigerant) || '—'}</div>
       <div><span>Date: </span>${esc(dateStr)}</div>
       <div><span>Tech: </span>${esc(tech) || '—'}</div>
     </div>
