@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HVAC No-Cooling Call Checklist</title>
+<style>
+  :root{
+    --ink:#1b2430;
+    --paper:#f6f5f1;
+    --panel:#ffffff;
+    --line:#dcdad1;
+    --accent:#2f6f5e;
+    --accent-dim:#e4efe9;
+    --fail:#b5432f;
+    --fail-dim:#f6e6e2;
+    --na:#8a8578;
+    --na-dim:#efeee8;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    padding:24px 16px 80px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  header{margin-bottom:20px;}
+  .eyebrow{
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    font-size:11px;
+    color:var(--accent);
+    font-weight:700;
+  }
+  h1{
+    font-size:24px;
+    margin:4px 0 2px;
+    letter-spacing:-.01em;
+  }
+  .sub{color:#6b6a63;font-size:13px;margin-bottom:14px;}
+  .meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .meta input{
+    flex:1 1 160px;
+    padding:8px 10px;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:var(--panel);
+    font-size:13px;
+    color:var(--ink);
+  }
+  .progress-bar{
+    position:sticky;
+    top:0;
+    z-index:5;
+    background:var(--paper);
+    padding:10px 0 12px;
+  }
+  .progress-track{
+    height:8px;
+    border-radius:999px;
+    background:var(--line);
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    background:var(--accent);
+    width:0%;
+    transition:width .25s ease;
+  }
+  .progress-text{
+    font-size:12px;
+    color:#6b6a63;
+    margin-top:6px;
+    display:flex;
+    justify-content:space-between;
+  }
+  section.group{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    margin-bottom:14px;
+    overflow:hidden;
+  }
+  .group-head{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:12px 14px;
+    background:#f0efe9;
+    border-bottom:1px solid var(--line);
+  }
+  .group-num{
+    font-size:11px;
+    font-weight:700;
+    color:var(--accent);
+    background:var(--accent-dim);
+    border-radius:5px;
+    padding:2px 7px;
+  }
+  .group-head h2{
+    font-size:14px;
+    margin:0;
+    font-weight:700;
+  }
+  ul.items{list-style:none;margin:0;padding:0;}
+  li.item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    padding:11px 14px;
+    border-bottom:1px solid var(--line);
+    font-size:14px;
+  }
+  li.item:last-child{border-bottom:none;}
+  li.item.state-pass{background:var(--accent-dim);}
+  li.item.state-fail{background:var(--fail-dim);}
+  li.item.state-na{background:var(--na-dim);}
+  .item-label{flex:1;line-height:1.35;}
+  .radios{
+    display:flex;
+    gap:4px;
+    flex-shrink:0;
+  }
+  .radios label{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:30px;
+    height:30px;
+    border-radius:6px;
+    border:1px solid var(--line);
+    background:var(--panel);
+    font-size:11px;
+    font-weight:700;
+    cursor:pointer;
+    color:#8a8578;
+    user-select:none;
+  }
+  .radios input{
+    position:absolute;
+    opacity:0;
+    width:0;
+    height:0;
+  }
+  .radios input:checked + span.pass{color:#fff;}
+  .radios label.pass:has(input:checked){background:var(--accent);border-color:var(--accent);color:#fff;}
+  .radios label.fail:has(input:checked){background:var(--fail);border-color:var(--fail);color:#fff;}
+  .radios label.na:has(input:checked){background:var(--na);border-color:var(--na);color:#fff;}
+  .radios label.pass.selected{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .radios label.fail.selected{background:var(--fail);border-color:var(--fail);color:#fff;}
+  .radios label.na.selected{background:var(--na);border-color:var(--na);color:#fff;}
+  .radios label:hover{filter:brightness(0.97);}
+  .notes-toggle{
+    padding:12px 14px;
+    border-top:1px dashed var(--line);
+  }
+  textarea{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:10px;
+    font-size:13px;
+    font-family:inherit;
+    resize:vertical;
+    min-height:70px;
+    background:var(--panel);
+    color:var(--ink);
+  }
+  .actions{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    background:var(--panel);
+    border-top:1px solid var(--line);
+    padding:10px 16px;
+    display:flex;
+    gap:8px;
+    justify-content:center;
+  }
+  .actions button{
+    border:1px solid var(--line);
+    background:var(--panel);
+    padding:9px 16px;
+    border-radius:7px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    color:var(--ink);
+  }
+  .actions button.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+  }
+  @media print{
+    .actions,.progress-bar{display:none;}
+    body{padding:0;background:#fff;}
+    section.group{break-inside:avoid;}
+  }
+
+  /* Report view */
+  #reportView{
+    display:none;
+    background:var(--paper);
+    padding:24px 16px 90px;
+  }
+  #reportView.visible{display:block;}
+  #checklistView.hidden{display:none;}
+  .report-card{
+    max-width:600px;
+    margin:0 auto;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:20px;
+  }
+  .report-card h1{font-size:19px;margin:2px 0 12px;}
+  .report-meta{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px 16px;
+    font-size:13px;
+    color:#494740;
+    margin-bottom:16px;
+    padding-bottom:14px;
+    border-bottom:1px solid var(--line);
+  }
+  .report-meta div span{color:#6b6a63;}
+  .report-summary{
+    display:flex;
+    gap:10px;
+    margin-bottom:18px;
+  }
+  .stat{
+    flex:1;
+    text-align:center;
+    border-radius:8px;
+    padding:10px 4px;
+  }
+  .stat .num{font-size:20px;font-weight:700;display:block;}
+  .stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#6b6a63;}
+  .stat.pass{background:var(--accent-dim);}
+  .stat.pass .num{color:var(--accent);}
+  .stat.fail{background:var(--fail-dim);}
+  .stat.fail .num{color:var(--fail);}
+  .stat.na{background:var(--na-dim);}
+  .stat.na .num{color:var(--na);}
+  .report-section{margin-bottom:16px;}
+  .report-section h3{
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    color:#6b6a63;
+    margin:0 0 8px;
+  }
+  .report-row{
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+    font-size:13px;
+    padding:6px 0;
+    border-bottom:1px solid #efeee8;
+  }
+  .report-row:last-child{border-bottom:none;}
+  .tag{
+    flex-shrink:0;
+    font-size:10px;
+    font-weight:700;
+    padding:2px 6px;
+    border-radius:4px;
+    color:#fff;
+    margin-top:1px;
+  }
+  .tag.fail{background:var(--fail);}
+  .tag.na{background:var(--na);}
+  .report-notes{
+    font-size:13px;
+    white-space:pre-wrap;
+    line-height:1.5;
+    color:#333;
+  }
+  .report-empty{font-size:13px;color:#8a8578;font-style:italic;}
+  .report-footer{
+    font-size:11px;
+    color:#8a8578;
+    text-align:center;
+    margin-top:6px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="checklistView">
+  <header>
+    <div class="eyebrow">Residential Service Call</div>
+    <h1>No-Cooling Diagnostic Checklist</h1>
+    <div class="sub">Tap Pass / Fail / N-A for each check. Progress and notes are for this visit only — print or export before closing the tab.</div>
+    <div class="meta">
+      <input type="text" placeholder="Customer / address" id="fld-customer">
+      <input type="text" placeholder="Date" id="fld-date">
+      <input type="text" placeholder="Tech name" id="fld-tech">
+    </div>
+  </header>
+
+  <div class="progress-bar">
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="progress-text"><span id="progressLabel">0 of 0 checked</span><span id="failLabel"></span></div>
+  </div>
+
+  <div id="checklist"></div>
+
+  <section class="group">
+    <div class="group-head"><h2>Call Notes</h2></div>
+    <div class="notes-toggle">
+      <textarea id="notes" placeholder="Readings, part numbers, findings, follow-up needed..."></textarea>
+    </div>
+  </section>
+</div>
+
+<div id="reportView">
+  <div class="report-card" id="reportCard"></div>
+</div>
+
+<div class="actions" id="checklistActions">
+  <button id="resetBtn">Reset</button>
+  <button id="reportBtn" class="primary">Generate Report</button>
+</div>
+
+<div class="actions" id="reportActions" style="display:none;">
+  <button id="backBtn">Back to Checklist</button>
+  <button id="printBtn" class="primary">Print / Save PDF</button>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+
+const DATA = [
+  { title: "Initial Info / Safety", items: [
+    "Got symptom details (when it stopped, noises/smells, thermostat display)",
+    "Verified power at disconnect and breaker before servicing"
+  ]},
+  { title: "Thermostat", items: [
+    "Confirmed set to Cool, setpoint below room temp",
+    "Checked batteries / display power",
+    "Verified call for cooling reaches equipment (jumper test if needed)"
+  ]},
+  { title: "Indoor Unit / Air Handler", items: [
+    "Checked condensate float switch not tripped",
+    "Inspected condensate line/pan for clog or overflow",
+    "Checked filter, replaced if dirty",
+    "Checked blower motor operation and airflow",
+    "Verified 24V at low-voltage transformer"
+  ]},
+  { title: "Outdoor Unit (Condenser)", items: [
+    "Confirmed contactor pulling in",
+    "Checked capacitor (visual bulge + microfarad test)",
+    "Checked compressor amp draw vs rated",
+    "Checked condenser fan motor operation",
+    "Inspected coil for dirt/debris blocking airflow"
+  ]},
+  { title: "Refrigerant Circuit", items: [
+    "Checked suction and liquid line pressures",
+    "Checked superheat/subcooling against spec",
+    "Inspected for oil residue (possible leak)",
+    "Checked line set insulation condition"
+  ]},
+  { title: "Electrical", items: [
+    "Checked disconnect fuses",
+    "Inspected wiring/connections for corrosion or burning",
+    "Verified correct voltage at compressor and fan motor"
+  ]},
+  { title: "Airflow / Duct", items: [
+    "Checked for closed or blocked supply/return vents",
+    "Checked duct connections near air handler for leaks"
+  ]},
+  { title: "Wrap-Up", items: [
+    "Cycled system, confirmed cooling at supply vents (16-20°F split)",
+    "Documented readings and parts used",
+    "Reviewed findings with customer"
+  ]}
+];
+
+const state = {}; // id -> 'pass' | 'fail' | 'na'
+let totalItems = 0;
+
+function buildChecklist(){
+  const root = document.getElementById('checklist');
+  root.innerHTML = '';
+  DATA.forEach((group, gi) => {
+    const section = document.createElement('section');
+    section.className = 'group';
+
+    const head = document.createElement('div');
+    head.className = 'group-head';
+    head.innerHTML = `<span class="group-num">${gi+1}</span><h2>${group.title}</h2>`;
+    section.appendChild(head);
+
+    const ul = document.createElement('ul');
+    ul.className = 'items';
+
+    group.items.forEach((label, ii) => {
+      const id = `g${gi}-i${ii}`;
+      totalItems++;
+      const li = document.createElement('li');
+      li.className = 'item';
+      li.id = `li-${id}`;
+      li.innerHTML = `
+        <div class="item-label">${label}</div>
+        <div class="radios">
+          <label class="pass" title="Pass"><input type="radio" name="${id}" value="pass"><span>OK</span></label>
+          <label class="fail" title="Fail"><input type="radio" name="${id}" value="fail"><span>X</span></label>
+          <label class="na" title="N/A"><input type="radio" name="${id}" value="na"><span>NA</span></label>
+        </div>
+      `;
+      ul.appendChild(li);
+    });
+
+    section.appendChild(ul);
+    root.appendChild(section);
+  });
+
+  document.getElementById('checklist').addEventListener('click', onRadioClick);
+  updateProgress();
+}
+
+function onRadioClick(e){
+  if(e.target.type !== 'radio') return;
+  const input = e.target;
+  const name = input.name;
+  const value = input.value;
+  const li = document.getElementById(`li-${name}`);
+  const labels = li.querySelectorAll('.radios label');
+
+  if(state[name] === value){
+    // clicking the already-selected option clears it
+    input.checked = false;
+    delete state[name];
+    li.classList.remove('state-pass','state-fail','state-na');
+  } else {
+    state[name] = value;
+    li.classList.remove('state-pass','state-fail','state-na');
+    li.classList.add(`state-${value}`);
+  }
+
+  labels.forEach(lbl => {
+    const inp = lbl.querySelector('input');
+    lbl.classList.toggle('selected', inp.checked);
+  });
+
+  updateProgress();
+}
+
+function updateProgress(){
+  const checked = Object.keys(state).length;
+  const fails = Object.values(state).filter(v => v === 'fail').length;
+  const pct = totalItems ? Math.round((checked/totalItems)*100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = `${checked} of ${totalItems} checked`;
+  document.getElementById('failLabel').textContent = fails ? `${fails} failed` : '';
+  document.getElementById('failLabel').style.color = fails ? '#b5432f' : '#6b6a63';
+}
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if(!confirm('Reset all checks and notes for this call?')) return;
+  Object.keys(state).forEach(k => delete state[k]);
+  document.getElementById('notes').value = '';
+  document.getElementById('fld-customer').value = '';
+  document.getElementById('fld-date').value = '';
+  document.getElementById('fld-tech').value = '';
+  buildChecklist();
+});
+
+document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+function esc(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function buildReport(){
+  const customer = document.getElementById('fld-customer').value.trim();
+  const date = document.getElementById('fld-date').value.trim();
+  const tech = document.getElementById('fld-tech').value.trim();
+  const notes = document.getElementById('notes').value.trim();
+
+  // flatten items with labels + group titles
+  const flat = [];
+  DATA.forEach(group => {
+    group.items.forEach(label => {
+      flat.push({ group: group.title, label });
+    });
+  });
+
+  let idx = 0;
+  const rows = { pass: [], fail: [], na: [], blank: [] };
+  DATA.forEach((group, gi) => {
+    group.items.forEach((label, ii) => {
+      const id = `g${gi}-i${ii}`;
+      const val = state[id];
+      const entry = { label, group: group.title };
+      if(val === 'pass') rows.pass.push(entry);
+      else if(val === 'fail') rows.fail.push(entry);
+      else if(val === 'na') rows.na.push(entry);
+      else rows.blank.push(entry);
+    });
+  });
+
+  const dateStr = date || new Date().toLocaleDateString();
+
+  let html = `
+    <div class="eyebrow">Residential Service Call</div>
+    <h1>No-Cooling Diagnostic Report</h1>
+    <div class="report-meta">
+      <div><span>Customer: </span>${esc(customer) || '—'}</div>
+      <div><span>Date: </span>${esc(dateStr)}</div>
+      <div><span>Tech: </span>${esc(tech) || '—'}</div>
+    </div>
+    <div class="report-summary">
+      <div class="stat pass"><span class="num">${rows.pass.length}</span><span class="lbl">Pass</span></div>
+      <div class="stat fail"><span class="num">${rows.fail.length}</span><span class="lbl">Fail</span></div>
+      <div class="stat na"><span class="num">${rows.na.length}</span><span class="lbl">N/A</span></div>
+    </div>
+  `;
+
+  if(rows.fail.length){
+    html += `<div class="report-section"><h3>Failed Checks</h3>`;
+    rows.fail.forEach(r => {
+      html += `<div class="report-row"><span class="tag fail">FAIL</span><span>${esc(r.label)}</span></div>`;
+    });
+    html += `</div>`;
+  } else {
+    html += `<div class="report-section"><h3>Failed Checks</h3><div class="report-empty">None — all checks passed or N/A.</div></div>`;
+  }
+
+  if(rows.blank.length){
+    html += `<div class="report-section"><h3>Not Checked</h3>`;
+    rows.blank.forEach(r => {
+      html += `<div class="report-row"><span class="tag na" style="background:#b9a35a;">–</span><span>${esc(r.label)}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  if(rows.na.length){
+    html += `<div class="report-section"><h3>N/A</h3>`;
+    rows.na.forEach(r => {
+      html += `<div class="report-row"><span class="tag na">NA</span><span>${esc(r.label)}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div class="report-section"><h3>Notes</h3>`;
+  html += notes ? `<div class="report-notes">${esc(notes)}</div>` : `<div class="report-empty">No notes entered.</div>`;
+  html += `</div>`;
+
+  html += `<div class="report-footer">Generated ${new Date().toLocaleString()}</div>`;
+
+  document.getElementById('reportCard').innerHTML = html;
+}
+
+document.getElementById('reportBtn').addEventListener('click', () => {
+  buildReport();
+  document.getElementById('checklistView').classList.add('hidden');
+  document.getElementById('reportView').classList.add('visible');
+  document.getElementById('checklistActions').style.display = 'none';
+  document.getElementById('reportActions').style.display = 'flex';
+  window.scrollTo(0,0);
+});
+
+document.getElementById('backBtn').addEventListener('click', () => {
+  document.getElementById('checklistView').classList.remove('hidden');
+  document.getElementById('reportView').classList.remove('visible');
+  document.getElementById('checklistActions').style.display = 'flex';
+  document.getElementById('reportActions').style.display = 'none';
+  window.scrollTo(0,0);
+});
+
+buildChecklist();
+
+});
+</script>
+</body>
+</html>
