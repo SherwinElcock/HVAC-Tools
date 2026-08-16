@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Low-Voltage Checklist — Service Calls</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#EDEAE3;
+    --charcoal:#1B1D1E;
+    --charcoal-2:#242627;
+    --panel:#2A2C2D;
+    --line:#3A3D3E;
+    --amber:#E8890C;
+    --amber-dim:#8a5a1f;
+    --ok:#5FA86A;
+    --muted:#8A8D91;
+  }
+  *{box-sizing:border-box;}
+  html{
+    background:var(--charcoal);
+  }
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--charcoal);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  .ticket{
+    max-width:640px;
+    margin:0 auto;
+    padding:0 0 80px;
+  }
+  header{
+    background:var(--charcoal-2);
+    border-bottom:3px solid var(--amber);
+    padding:28px 20px 20px;
+    position:sticky;
+    top:0;
+    z-index:10;
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    font-size:26px;
+    margin:0 0 4px;
+    line-height:1.1;
+  }
+  .sub{
+    color:var(--muted);
+    font-size:12px;
+    margin:0 0 16px;
+  }
+  .progress-row{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .progress-track{
+    flex:1;
+    height:6px;
+    background:var(--line);
+    border-radius:3px;
+    overflow:hidden;
+  }
+  .progress-fill{
+    height:100%;
+    width:0%;
+    background:var(--amber);
+    transition:width .25s ease;
+  }
+  .progress-count{
+    font-size:12px;
+    color:var(--muted);
+    min-width:44px;
+    text-align:right;
+  }
+  section.group{
+    padding:0 20px;
+  }
+  h2{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size:14px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:28px 0 10px;
+    padding-bottom:6px;
+    border-bottom:1px solid var(--line);
+  }
+  ul{
+    list-style:none;
+    margin:0;
+    padding:0;
+  }
+  li{
+    border-bottom:1px solid var(--line);
+  }
+  label{
+    display:flex;
+    align-items:flex-start;
+    gap:12px;
+    padding:13px 4px;
+    cursor:pointer;
+    font-size:14.5px;
+    line-height:1.4;
+  }
+  input[type="checkbox"]{
+    appearance:none;
+    -webkit-appearance:none;
+    width:20px;
+    height:20px;
+    min-width:20px;
+    margin-top:1px;
+    border:2px solid var(--muted);
+    border-radius:4px;
+    background:transparent;
+    position:relative;
+    cursor:pointer;
+  }
+  input[type="checkbox"]:checked{
+    background:var(--amber);
+    border-color:var(--amber);
+  }
+  input[type="checkbox"]:checked::after{
+    content:"";
+    position:absolute;
+    left:5px;
+    top:1px;
+    width:6px;
+    height:11px;
+    border:solid var(--charcoal);
+    border-width:0 2px 2px 0;
+    transform:rotate(45deg);
+  }
+  li.checked label{
+    color:var(--muted);
+    text-decoration:line-through;
+    text-decoration-color:var(--amber-dim);
+  }
+  .flag{
+    margin-top:34px;
+    background:var(--panel);
+    border:1px solid var(--amber-dim);
+    border-left:4px solid var(--amber);
+    padding:14px 16px;
+    border-radius:4px;
+  }
+  .flag h2{
+    border:none;
+    margin:0 0 8px;
+    padding:0;
+  }
+  footer{
+    text-align:center;
+    padding:30px 20px 0;
+    color:var(--muted);
+    font-size:11px;
+  }
+  button.reset{
+    background:none;
+    border:1px solid var(--line);
+    color:var(--muted);
+    font-family:inherit;
+    font-size:11px;
+    padding:6px 12px;
+    border-radius:4px;
+    cursor:pointer;
+    margin-top:14px;
+  }
+  button.reset:hover{
+    border-color:var(--amber);
+    color:var(--amber);
+  }
+</style>
+</head>
+<body>
+<div class="ticket">
+  <header>
+    <p class="eyebrow">Field Checklist</p>
+    <h1>Low-Voltage Circuit</h1>
+    <p class="sub">24V control circuit — service call diagnostic</p>
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="fill"></div></div>
+      <div class="progress-count" id="count">0/17</div>
+    </div>
+  </header>
+
+  <section class="group">
+    <h2>Power Supply</h2>
+    <ul>
+      <li><label><input type="checkbox"><span>24V present at transformer secondary (24–28V)</span></label></li>
+      <li><label><input type="checkbox"><span>Thermostat has power / display is on</span></label></li>
+    </ul>
+
+    <h2>Fuse & Board</h2>
+    <ul>
+      <li><label><input type="checkbox"><span>Check low-voltage fuse on control board (usually 3A)</span></label></li>
+      <li><label><input type="checkbox"><span>If blown, find the short before replacing — don't just swap and go</span></label></li>
+    </ul>
+
+    <h2>Wiring & Connections</h2>
+    <ul>
+      <li><label><input type="checkbox"><span>Inspect connections at furnace/air handler board</span></label></li>
+      <li><label><input type="checkbox"><span>Inspect connections at condenser</span></label></li>
+      <li><label><input type="checkbox"><span>Inspect connections at thermostat</span></label></li>
+      <li><label><input type="checkbox"><span>Loose or corroded wire nuts</span></label></li>
+      <li><label><input type="checkbox"><span>Pinched/chafed wire at cabinet edges</span></label></li>
+      <li><label><input type="checkbox"><span>Confirm correct terminal wiring: R / C / Y / G / W / O-B</span></label></li>
+    </ul>
+
+    <h2>Safety Switches</h2>
+    <ul>
+      <li><label><input type="checkbox"><span>Condensate float switch — tripped?</span></label></li>
+      <li><label><input type="checkbox"><span>Limit switch (heat side)</span></label></li>
+      <li><label><input type="checkbox"><span>Rollout switch (heat side)</span></label></li>
+    </ul>
+
+    <h2>Components</h2>
+    <ul>
+      <li><label><input type="checkbox"><span>Contactor coil pulls in on call, correct resistance</span></label></li>
+      <li><label><input type="checkbox"><span>Fan relay clicks / energizes properly</span></label></li>
+      <li><label><input type="checkbox"><span>Interposing relays functioning</span></label></li>
+    </ul>
+
+    <h2>Voltage Drop Testing</h2>
+    <ul>
+      <li><label><input type="checkbox"><span>Check drop across each device when energized (near-zero if good)</span></label></li>
+    </ul>
+
+    <div class="flag">
+      <h2>Quick-Hit Culprits</h2>
+      <ul>
+        <li><label><input type="checkbox"><span>Blown 3A fuse</span></label></li>
+        <li><label><input type="checkbox"><span>Tripped condensate float switch</span></label></li>
+        <li><label><input type="checkbox"><span>Corroded thermostat wire at outdoor unit</span></label></li>
+        <li><label><input type="checkbox"><span>Loose C-wire causing intermittent stat dropout</span></label></li>
+      </ul>
+    </div>
+
+    <button class="reset" id="resetBtn">Reset checklist</button>
+  </section>
+
+  <footer>Low-Voltage Circuit — Service Call Checklists</footer>
+</div>
+
+<script>
+  const STORAGE_KEY = 'checklist-low-voltage';
+  const boxes = Array.from(document.querySelectorAll('input[type="checkbox"]'));
+  const fill = document.getElementById('fill');
+  const count = document.getElementById('count');
+
+  function updateProgress(){
+    const checked = boxes.filter(b => b.checked).length;
+    fill.style.width = (checked / boxes.length * 100) + '%';
+    count.textContent = checked + '/' + boxes.length;
+  }
+
+  function save(){
+    const state = boxes.map(b => b.checked);
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+  }
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return;
+      const state = JSON.parse(raw);
+      boxes.forEach((b,i) => { b.checked = !!state[i]; b.closest('li').classList.toggle('checked', b.checked); });
+    }catch(e){}
+  }
+
+  boxes.forEach(b => {
+    b.addEventListener('change', () => {
+      b.closest('li').classList.toggle('checked', b.checked);
+      updateProgress();
+      save();
+    });
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    boxes.forEach(b => { b.checked = false; b.closest('li').classList.remove('checked'); });
+    updateProgress();
+    save();
+  });
+
+  load();
+  updateProgress();
+</script>
+</body>
+</html>
