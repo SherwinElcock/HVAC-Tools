@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Service Call Checklists</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#EDEAE3;
+    --charcoal:#1B1D1E;
+    --charcoal-2:#242627;
+    --panel:#2A2C2D;
+    --line:#3A3D3E;
+    --amber:#E8890C;
+    --muted:#8A8D91;
+  }
+  *{box-sizing:border-box;}
+  html{background:var(--charcoal);}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:var(--charcoal);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{
+    max-width:640px;
+    margin:0 auto;
+    padding:0 20px 60px;
+  }
+  header{
+    border-bottom:3px solid var(--amber);
+    padding:32px 0 20px;
+  }
+  .eyebrow{
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--amber);
+    margin:0 0 6px;
+  }
+  h1{
+    font-family:'Oswald', sans-serif;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    font-size:28px;
+    margin:0 0 6px;
+    line-height:1.1;
+  }
+  .sub{
+    color:var(--muted);
+    font-size:12.5px;
+    margin:0;
+  }
+  .list{
+    list-style:none;
+    margin:24px 0 0;
+    padding:0;
+  }
+  .list li{
+    border-bottom:1px solid var(--line);
+  }
+  .list a{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:18px 4px;
+    color:var(--ink);
+    text-decoration:none;
+  }
+  .list a:hover .name{
+    color:var(--amber);
+  }
+  .name{
+    font-family:'Oswald', sans-serif;
+    font-weight:600;
+    font-size:16px;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+  }
+  .desc{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:400;
+    font-size:11.5px;
+    color:var(--muted);
+    text-transform:none;
+    letter-spacing:0;
+    margin-top:4px;
+  }
+  .arrow{
+    color:var(--amber);
+    font-size:18px;
+    flex-shrink:0;
+  }
+  .empty{
+    margin-top:24px;
+    padding:14px 16px;
+    background:var(--panel);
+    border-left:4px solid var(--line);
+    border-radius:4px;
+    color:var(--muted);
+    font-size:12.5px;
+  }
+  footer{
+    text-align:center;
+    padding:30px 0 0;
+    color:var(--muted);
+    font-size:11px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Field Reference</p>
+    <h1>Service Call Checklists</h1>
+    <p class="sub">Diagnostic checklists for the truck</p>
+  </header>
+
+  <ul class="list">
+    <li>
+      <a href="low-voltage.html">
+        <span>
+          <span class="name">Low-Voltage Circuit</span>
+          <span class="desc">24V control circuit diagnostics</span>
+        </span>
+        <span class="arrow">→</span>
+      </a>
+    </li>
+  </ul>
+
+  <footer>Add a new checklist by dropping a page in this repo and linking it above.</footer>
+</div>
+</body>
+</html>
