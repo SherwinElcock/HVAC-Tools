@@ -6,16 +6,18 @@
 <title>HVAC No-Cooling Call Checklist</title>
 <style>
   :root{
-    --ink:#1b2430;
-    --paper:#f6f5f1;
-    --panel:#ffffff;
-    --line:#dcdad1;
-    --accent:#2f6f5e;
-    --accent-dim:#e4efe9;
-    --fail:#b5432f;
-    --fail-dim:#f6e6e2;
-    --na:#8a8578;
-    --na-dim:#efeee8;
+    --ink:#e7edf0;
+    --paper:#0c1417;
+    --panel:#131c20;
+    --panel-2:#0f171a;
+    --line:#243138;
+    --dim:#8ea0a8;
+    --accent:#4fd48c;
+    --accent-dim:#173226;
+    --fail:#ff6b57;
+    --fail-dim:#331a17;
+    --na:#8ea0a8;
+    --na-dim:#1a2327;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   }
   *{box-sizing:border-box;}
@@ -39,7 +41,7 @@
     margin:4px 0 2px;
     letter-spacing:-.01em;
   }
-  .sub{color:#6b6a63;font-size:13px;margin-bottom:14px;}
+  .sub{color:var(--dim);font-size:13px;margin-bottom:14px;}
   .meta{
     display:flex;
     flex-wrap:wrap;
@@ -76,7 +78,7 @@
   }
   .progress-text{
     font-size:12px;
-    color:#6b6a63;
+    color:var(--dim);
     margin-top:6px;
     display:flex;
     justify-content:space-between;
@@ -93,7 +95,7 @@
     align-items:center;
     gap:8px;
     padding:12px 14px;
-    background:#f0efe9;
+    background:var(--panel-2);
     border-bottom:1px solid var(--line);
   }
   .group-num{
@@ -141,7 +143,7 @@
     font-size:11px;
     font-weight:700;
     cursor:pointer;
-    color:#8a8578;
+    color:var(--dim);
     user-select:none;
   }
   .radios input{
@@ -229,12 +231,12 @@
     flex-wrap:wrap;
     gap:4px 16px;
     font-size:13px;
-    color:#494740;
+    color:var(--dim);
     margin-bottom:16px;
     padding-bottom:14px;
     border-bottom:1px solid var(--line);
   }
-  .report-meta div span{color:#6b6a63;}
+  .report-meta div span{color:var(--dim);}
   .report-summary{
     display:flex;
     gap:10px;
@@ -247,7 +249,7 @@
     padding:10px 4px;
   }
   .stat .num{font-size:20px;font-weight:700;display:block;}
-  .stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#6b6a63;}
+  .stat .lbl{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--dim);}
   .stat.pass{background:var(--accent-dim);}
   .stat.pass .num{color:var(--accent);}
   .stat.fail{background:var(--fail-dim);}
@@ -259,7 +261,7 @@
     font-size:11px;
     text-transform:uppercase;
     letter-spacing:.08em;
-    color:#6b6a63;
+    color:var(--dim);
     margin:0 0 8px;
   }
   .report-row{
@@ -268,7 +270,7 @@
     align-items:flex-start;
     font-size:13px;
     padding:6px 0;
-    border-bottom:1px solid #efeee8;
+    border-bottom:1px solid var(--line);
   }
   .report-row:last-child{border-bottom:none;}
   .tag{
@@ -286,12 +288,12 @@
     font-size:13px;
     white-space:pre-wrap;
     line-height:1.5;
-    color:#333;
+    color:var(--ink);
   }
-  .report-empty{font-size:13px;color:#8a8578;font-style:italic;}
+  .report-empty{font-size:13px;color:var(--dim);font-style:italic;}
   .report-footer{
     font-size:11px;
-    color:#8a8578;
+    color:var(--dim);
     text-align:center;
     margin-top:6px;
   }
@@ -308,7 +310,7 @@
       <input type="text" placeholder="Equipment (make/model)" id="fld-equipment">
       <input type="text" placeholder="Refrigerant type (e.g. R-410A)" id="fld-refrigerant">
       <input type="text" placeholder="Date" id="fld-date">
-      <input type="text" placeholder="Sherwin Elcock" id="fld-tech">
+      <input type="text" placeholder="Tech name" id="fld-tech">
     </div>
   </header>
 
@@ -384,7 +386,7 @@ const DATA = [
     "Checked duct connections near air handler for leaks"
   ]},
   { title: "Wrap-Up", items: [
-    "Cycled system, confirmed cooling at supply vents (18-22°F split)",
+    "Cycled system, confirmed cooling at supply vents (16-20°F split)",
     "Documented readings and parts used",
     "Reviewed findings with customer"
   ]}
@@ -475,7 +477,7 @@ function updateProgress(){
   document.getElementById('progressFill').style.width = pct + '%';
   document.getElementById('progressLabel').textContent = `${checked} of ${totalItems} checked`;
   document.getElementById('failLabel').textContent = fails ? `${fails} failed` : '';
-  document.getElementById('failLabel').style.color = fails ? '#b5432f' : '#6b6a63';
+  document.getElementById('failLabel').style.color = fails ? '#b5432f' : 'var(--dim)';
 }
 
 document.getElementById('resetBtn').addEventListener('click', () => {
@@ -560,7 +562,7 @@ function buildReport(){
   if(rows.blank.length){
     html += `<div class="report-section"><h3>Not Checked</h3>`;
     rows.blank.forEach(r => {
-      html += `<div class="report-row"><span class="tag na" style="background:#b9a35a;">–</span><span>${esc(r.label)}</span></div>`;
+      html += `<div class="report-row"><span class="tag na" style="background:#e8a33d;">–</span><span>${esc(r.label)}</span></div>`;
     });
     html += `</div>`;
   }
