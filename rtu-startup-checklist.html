@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RTU Cooling Startup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121212;
+    --card:#1c1c1c;
+    --card-line:#2c2c2c;
+    --chalk:#f2f0eb;
+    --chalk-dim:#a8a49a;
+    --iron:#c4622d;
+    --steel:#5b7a8c;
+    --done:#5a8f5a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--chalk);
+    font-family:'Inter',system-ui,sans-serif;
+    padding-bottom:60px;
+  }
+  header{
+    padding:28px 20px 18px;
+    border-bottom:2px solid var(--card-line);
+  }
+  .eyebrow{
+    font-family:'Oswald',sans-serif;
+    font-size:13px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--iron);
+    margin:0 0 4px;
+  }
+  h1{
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:30px;
+    letter-spacing:0.01em;
+    margin:0;
+    text-transform:uppercase;
+  }
+  .sub{
+    color:var(--chalk-dim);
+    font-size:14px;
+    margin-top:6px;
+  }
+  main{
+    max-width:520px;
+    margin:0 auto;
+    padding:16px;
+  }
+  .step{
+    display:flex;
+    gap:14px;
+    background:var(--card);
+    border:1px solid var(--card-line);
+    border-radius:10px;
+    padding:14px 16px;
+    margin-bottom:10px;
+    cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+    transition:border-color 0.15s ease;
+  }
+  .step.done{
+    border-color:var(--done);
+  }
+  .checkbox{
+    flex-shrink:0;
+    width:30px;
+    height:30px;
+    border-radius:50%;
+    border:2px solid var(--steel);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-family:'Oswald',sans-serif;
+    font-weight:700;
+    font-size:14px;
+    color:var(--steel);
+    margin-top:2px;
+  }
+  .step.done .checkbox{
+    background:var(--done);
+    border-color:var(--done);
+    color:var(--bg);
+  }
+  .step-body{
+    flex:1;
+  }
+  .step-title{
+    font-family:'Oswald',sans-serif;
+    font-weight:500;
+    font-size:16.5px;
+    letter-spacing:0.005em;
+  }
+  .step-desc{
+    font-size:13px;
+    color:var(--chalk-dim);
+    margin-top:4px;
+    line-height:1.4;
+  }
+  .footer-bar{
+    max-width:520px;
+    margin:8px auto 0;
+    padding:0 16px;
+    display:flex;
+    gap:10px;
+  }
+  button.action{
+    flex:1;
+    font-family:'Oswald',sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    font-size:13px;
+    padding:12px;
+    border-radius:8px;
+    border:1px solid var(--card-line);
+    background:var(--card);
+    color:var(--chalk-dim);
+    cursor:pointer;
+  }
+  button.action:active{
+    background:var(--card-line);
+  }
+  #status{
+    text-align:center;
+    font-size:12px;
+    color:var(--chalk-dim);
+    margin-top:14px;
+    min-height:14px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="eyebrow">Commercial RTU · Cooling Call</p>
+  <h1>Startup Sequence</h1>
+  <p class="sub">Tap each step as it happens. Progress saves automatically.</p>
+</header>
+
+<main id="step-list"></main>
+
+<div class="footer-bar">
+  <button class="action" id="reset-btn">Reset checklist</button>
+</div>
+<p id="status"></p>
+
+<script>
+const steps = [
+  { id: 'call', title: '1. Call for cooling', desc: 'Thermostat/controller sends Y (and G) to the RTU control board.' },
+  { id: 'blower', title: '2. Indoor blower starts', desc: 'G energizes supply fan. Some units run a brief pre-purge first.' },
+  { id: 'timer', title: '3. Anti-short-cycle timer check', desc: 'Board confirms compressor min off-time (usually 3–5 min) before allowing start.' },
+  { id: 'contactor', title: '4. Outdoor fan & compressor energize', desc: 'Typically simultaneous, or condenser fan slightly leads. Contactor pulls in.' },
+  { id: 'ramp', title: '5. Compressor ramp/inrush', desc: 'Soft-start or VFD units ramp briefly; standard scrolls go to full speed immediately.' },
+  { id: 'safeties', title: '6. Safety monitoring active', desc: 'High/low pressure switches, low ambient lockout, freeze stat all watched. 2-stage units bring in stage 2 if needed.' },
+  { id: 'economizer', title: '7. Economizer check', desc: 'If equipped, board checks outdoor air conditions for free cooling before/alongside mechanical cooling.' },
+  { id: 'steady', title: '8. Steady-state operation', desc: 'Suction/head pressures stabilize, superheat/subcooling settle, unit runs until satisfied.' },
+  { id: 'shutdown', title: '9. Shutdown', desc: 'Y drops — compressor off first, condenser fan delay-off, then blower off-delay (30–90 sec) sweeps the coil.' }
+];
+
+const listEl = document.getElementById('step-list');
+const statusEl = document.getElementById('status');
+
+function setStatus(msg){
+  statusEl.textContent = msg;
+  setTimeout(()=>{ if(statusEl.textContent === msg) statusEl.textContent=''; }, 1200);
+}
+
+function buildStep(step){
+  const el = document.createElement('div');
+  el.className = 'step';
+  el.dataset.id = step.id;
+  el.innerHTML = `
+    <div class="checkbox">✓</div>
+    <div class="step-body">
+      <div class="step-title">${step.title}</div>
+      <div class="step-desc">${step.desc}</div>
+    </div>
+  `;
+  return el;
+}
+
+steps.forEach(s => listEl.appendChild(buildStep(s)));
+
+async function loadState(){
+  for(const step of steps){
+    try{
+      const c = await window.storage.get(`rtu-step:${step.id}`, false);
+      if(c && c.value === 'true'){
+        const el = document.querySelector(`.step[data-id="${step.id}"]`);
+        if(el) el.classList.add('done');
+      }
+    }catch(e){}
+  }
+}
+
+listEl.addEventListener('click', async (e)=>{
+  const stepEl = e.target.closest('.step');
+  if(!stepEl) return;
+  stepEl.classList.toggle('done');
+  const id = stepEl.dataset.id;
+  const isDone = stepEl.classList.contains('done');
+  try{
+    await window.storage.set(`rtu-step:${id}`, isDone ? 'true' : 'false', false);
+  }catch(err){ setStatus('Could not save — try again'); }
+});
+
+document.getElementById('reset-btn').addEventListener('click', async ()=>{
+  for(const step of steps){
+    document.querySelector(`.step[data-id="${step.id}"]`).classList.remove('done');
+    try{ await window.storage.set(`rtu-step:${step.id}`, 'false', false); }catch(e){}
+  }
+  setStatus('Checklist reset');
+});
+
+loadState();
+</script>
+
+</body>
+</html>
