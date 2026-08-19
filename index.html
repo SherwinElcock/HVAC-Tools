@@ -3,214 +3,183 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Service Call Checklists</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>HVAC Tools</title>
 <style>
-  :root{
-    --ink:#EDEAE3;
-    --charcoal:#1B1D1E;
-    --charcoal-2:#242627;
-    --panel:#2A2C2D;
-    --line:#3A3D3E;
-    --amber:#E8890C;
-    --muted:#8A8D91;
+  :root {
+    --bg: #121417;
+    --card: #1c1f24;
+    --border: #2b2f36;
+    --text: #e7e9ec;
+    --muted: #9aa1ab;
+    --accent: #3ea6ff;
   }
-  *{box-sizing:border-box;}
-  html{background:var(--charcoal);}
-  body{
-    margin:0;
-    min-height:100vh;
-    background:var(--charcoal);
-    color:var(--ink);
-    font-family:'IBM Plex Mono', monospace;
-    -webkit-font-smoothing:antialiased;
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 60px;
   }
-  .wrap{
-    max-width:640px;
-    margin:0 auto;
-    padding:0 20px 60px;
+  .wrap { max-width: 640px; margin: 0 auto; }
+  h1 {
+    font-size: 1.5rem;
+    margin: 0 0 4px;
   }
-  header{
-    border-bottom:3px solid var(--amber);
-    padding:32px 0 20px;
+  p.sub {
+    color: var(--muted);
+    margin: 0 0 20px;
+    font-size: 0.9rem;
   }
-  .eyebrow{
-    font-size:11px;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-    color:var(--amber);
-    margin:0 0 6px;
+  .search-box {
+    position: relative;
+    margin-bottom: 20px;
   }
-  h1{
-    font-family:'Oswald', sans-serif;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.02em;
-    font-size:28px;
-    margin:0 0 6px;
-    line-height:1.1;
+  input[type="text"] {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 1rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    outline: none;
   }
-  .sub{
-    color:var(--muted);
-    font-size:12.5px;
-    margin:0;
+  input[type="text"]:focus {
+    border-color: var(--accent);
   }
-  .list{
-    list-style:none;
-    margin:24px 0 0;
-    padding:0;
+  .status {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 12px;
+    min-height: 1.2em;
   }
-  .list li{
-    border-bottom:1px solid var(--line);
+  ul.list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
   }
-  .list a{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    padding:18px 4px;
-    color:var(--ink);
-    text-decoration:none;
+  li.item a {
+    display: block;
+    padding: 14px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 1rem;
+    transition: border-color 0.15s ease, background 0.15s ease;
   }
-  .list a:hover .name{
-    color:var(--amber);
+  li.item a:hover {
+    border-color: var(--accent);
+    background: #21252b;
   }
-  .name{
-    font-family:'Oswald', sans-serif;
-    font-weight:600;
-    font-size:16px;
-    text-transform:uppercase;
-    letter-spacing:.02em;
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 40px 0;
   }
-  .desc{
-    display:block;
-    font-family:'IBM Plex Mono', monospace;
-    font-weight:400;
-    font-size:11.5px;
-    color:var(--muted);
-    text-transform:none;
-    letter-spacing:0;
-    margin-top:4px;
-  }
-  .arrow{
-    color:var(--amber);
-    font-size:18px;
-    flex-shrink:0;
-  }
-  .empty{
-    margin-top:24px;
-    padding:14px 16px;
-    background:var(--panel);
-    border-left:4px solid var(--line);
-    border-radius:4px;
-    color:var(--muted);
-    font-size:12.5px;
-  }
-  footer{
-    text-align:center;
-    padding:30px 0 0;
-    color:var(--muted);
-    font-size:11px;
+  .error {
+    color: #ff6b6b;
+    background: var(--card);
+    border: 1px solid #4a2323;
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.9rem;
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <p class="eyebrow">Stuff to Check</p>
-    <h1>Remember Service Titan</h1>
-    <p class="sub">Remember Check Refrigerant Type</p>
-  </header>
+  <div class="wrap">
+    <h1>HVAC Tools</h1>
+    <p class="sub">Service-call checklists and calculators</p>
 
-  <ul class="list">
-    <li>
-      <a href="low-voltage.html">
-        <span>
-          <span class="name">Low-Voltage Circuit</span>
-          <span class="desc">24V control circuit diagnostics</span>
-        </span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search pages..." autocomplete="off">
+    </div>
 
-  <ul class="list">
-    <li>
-      <a href="hvac-no-cooling-checklist.html">
-        <span>
-          <span class="name">No Cool Checklist</span>
-          <span class="desc">Residential Call</span>
-        </span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
+    <div class="status" id="status"></div>
+    <ul class="list" id="list"></ul>
+    <div class="empty" id="emptyMsg" style="display:none;">No matching pages found.</div>
+  </div>
 
-  <ul class="list">
-    <li>
-      <a href="rtu-startup-checklist.html">
-        <span>
-          <span class="name">RTU Startup</span>
-          <span class="desc">Typical Carrier Startup</span>
-        </span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
+<script>
+  const REPO_OWNER = "SherwinElcock";
+  const REPO_NAME = "HVAC-Tools";
+  const API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/`;
 
-    <ul class="list">
-    <li>
-      <a href="ss-calc.html">
-        <span>
-          <span class="name">Subcooling & Superheat Calculator</span>
-          <span class="desc">Gauge and Line Temps</span>
-        </span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
+  const listEl = document.getElementById("list");
+  const statusEl = document.getElementById("status");
+  const emptyMsg = document.getElementById("emptyMsg");
+  const searchInput = document.getElementById("searchInput");
 
-  <ul class="list">
-    <li>
-      <a href="sub-diagnostic.html">
-        <span>
-          <span class="name">Superheat / Subcooling </span>
-          <span class="desc">Possible Causes</span>
-        </span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
+  let allPages = [];
 
-  
-  <ul class="list">
-    <li>
-      <a href="manio-ice-machine-101.html">
-        <span>
-          <span class="name">Manitowoc Ice Machine 101 </span>
-          <span class="desc">How it works</span>
-        </span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
+  function titleize(filename) {
+    return filename
+      .replace(/\.html$/i, "")
+      .replace(/[-_]+/g, " ")
+      .replace(/\b\w/g, c => c.toUpperCase());
+  }
 
+  function render(pages) {
+    listEl.innerHTML = "";
+    if (pages.length === 0) {
+      emptyMsg.style.display = "block";
+      return;
+    }
+    emptyMsg.style.display = "none";
+    pages.forEach(page => {
+      const li = document.createElement("li");
+      li.className = "item";
+      const a = document.createElement("a");
+      a.href = page.name;
+      a.textContent = page.title;
+      li.appendChild(a);
+      listEl.appendChild(li);
+    });
+  }
 
-  <ul class="list">
-    <li>
-      <a href="manitowoc-checklist.html">
-        <span>
-          <span class="name">Manitowoc Ice Maker</span>
-          <span class="desc">Troubleshooting</span>
-        </span>
-        <span class="arrow">→</span>
-      </a>
-    </li>
-  </ul>
+  function filterAndRender() {
+    const q = searchInput.value.trim().toLowerCase();
+    const filtered = !q
+      ? allPages
+      : allPages.filter(p =>
+          p.title.toLowerCase().includes(q) || p.name.toLowerCase().includes(q)
+        );
+    render(filtered);
+  }
 
-  
-  <!-- <footer>Add a new checklist by dropping a page in this repo and linking it above.</footer> -->
-</div>
+  async function loadPages() {
+    statusEl.textContent = "Loading pages...";
+    try {
+      const res = await fetch(API_URL);
+      if (!res.ok) throw new Error(`GitHub API error (${res.status})`);
+      const data = await res.json();
+
+      allPages = data
+        .filter(f => f.type === "file" && f.name.toLowerCase().endsWith(".html"))
+        .filter(f => f.name.toLowerCase() !== "index.html")
+        .map(f => ({ name: f.name, title: titleize(f.name) }))
+        .sort((a, b) => a.title.localeCompare(b.title));
+
+      statusEl.textContent = `${allPages.length} page${allPages.length === 1 ? "" : "s"}`;
+      render(allPages);
+    } catch (err) {
+      statusEl.textContent = "";
+      listEl.innerHTML = "";
+      const errDiv = document.createElement("div");
+      errDiv.className = "error";
+      errDiv.textContent = "Couldn't load page list from GitHub. Check your connection and refresh.";
+      listEl.parentNode.insertBefore(errDiv, emptyMsg);
+    }
+  }
+
+  searchInput.addEventListener("input", filterAndRender);
+  loadPages();
+</script>
 </body>
 </html>
