@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RTU Condenser Fan Motor Replacement Checklist</title>
+<style>
+  :root {
+    --bg: #121212;
+    --panel: #1c1c1c;
+    --border: #2e2e2e;
+    --text: #e6e6e6;
+    --muted: #9a9a9a;
+    --accent: #4da6ff;
+    --check: #3ecf5e;
+    --danger: #ff5c5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    line-height: 1.5;
+  }
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+  }
+  .safety {
+    background: #2a1414;
+    border: 1px solid #4a1f1f;
+    color: #ffb3b3;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    margin-bottom: 24px;
+  }
+  .safety strong { color: var(--danger); }
+  section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  section h2 {
+    font-size: 1rem;
+    color: var(--accent);
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  ul { list-style: none; margin: 0; padding: 0; }
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #262626;
+  }
+  li:last-child { border-bottom: none; }
+  input[type="checkbox"] {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    accent-color: var(--check);
+    flex-shrink: 0;
+  }
+  label { cursor: pointer; }
+  .note {
+    display: block;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+  li.checked label { color: var(--muted); text-decoration: line-through; }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-top: 30px;
+  }
+  .progress {
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 8px 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<h1>RTU Condenser Fan Motor Replacement</h1>
+<div class="subtitle">Field checklist — packaged unit / RTU condenser fan motor swap</div>
+
+<div class="progress" id="progress">0 / 0 complete</div>
+
+<div class="safety">
+  <strong>Lockout/Tagout first.</strong> Disconnect and tag power at the unit disconnect before opening any panel. Verify zero voltage at the contactor with a meter before touching wiring. Discharge/verify capacitor before handling leads.
+</div>
+
+<section>
+  <h2>1. Before You Start</h2>
+  <ul>
+    <li><input type="checkbox"><label>Confirm unit model/serial and pull correct motor part number</label></li>
+    <li><input type="checkbox"><label>Verify replacement motor: HP, voltage, RPM, rotation direction match old motor</label><span class="note">Check nameplate on old motor and match against new part</span></li>
+    <li><input type="checkbox"><label>Check capacitor µF/voltage rating — confirm compatible with new motor</label></li>
+    <li><input type="checkbox"><label>Photograph wiring/harness connections before disconnecting</label></li>
+    <li><input type="checkbox"><label>Lockout/tagout unit disconnect</label></li>
+    <li><input type="checkbox"><label>Verify zero voltage with meter at contactor</label></li>
+  </ul>
+</section>
+
+<section>
+  <h2>2. Remove Old Motor</h2>
+  <ul>
+    <li><input type="checkbox"><label>Remove fan guard/grille</label></li>
+    <li><input type="checkbox"><label>Discharge and disconnect run capacitor leads (if wired to motor)</label></li>
+    <li><input type="checkbox"><label>Unplug or disconnect motor wiring harness</label></li>
+    <li><input type="checkbox"><label>Mark fan blade position on shaft (height/setback) before removal</label></li>
+    <li><input type="checkbox"><label>Loosen set screw(s) and remove fan blade</label></li>
+    <li><input type="checkbox"><label>Remove motor mounting bolts/bracket</label></li>
+    <li><input type="checkbox"><label>Pull old motor, note orientation</label></li>
+  </ul>
+</section>
+
+<section>
+  <h2>3. Install New Motor</h2>
+  <ul>
+    <li><input type="checkbox"><label>Mount new motor in bracket, orientation matching original</label></li>
+    <li><input type="checkbox"><label>Install fan blade at marked height/setback, tighten set screw(s) to spec</label></li>
+    <li><input type="checkbox"><label>Spin blade by hand — confirm clearance from shroud, no rubbing</label></li>
+    <li><input type="checkbox"><label>Connect wiring harness / plug (or wire nuts if universal motor)</label><span class="note">Match leads by function: common, run, start — not by color alone</span></li>
+    <li><input type="checkbox"><label>Connect capacitor leads if applicable</label></li>
+    <li><input type="checkbox"><label>Confirm rotation direction will be correct (reversible leads swapped if needed)</label></li>
+    <li><input type="checkbox"><label>Reinstall fan guard/grille</label></li>
+  </ul>
+</section>
+
+<section>
+  <h2>4. Power Up &amp; Test</h2>
+  <ul>
+    <li><input type="checkbox"><label>Remove lockout/tagout, restore power</label></li>
+    <li><input type="checkbox"><label>Cycle unit into cooling call, confirm fan motor starts</label></li>
+    <li><input type="checkbox"><label>Verify correct rotation direction (airflow direction matches design)</label></li>
+    <li><input type="checkbox"><label>Check running amp draw against motor nameplate FLA</label></li>
+    <li><input type="checkbox"><label>Check for excess vibration, noise, or blade contact</label></li>
+    <li><input type="checkbox"><label>Verify head pressure/subcooling in normal range with fan running</label></li>
+    <li><input type="checkbox"><label>Reinstall all panels</label></li>
+    <li><input type="checkbox"><label>Log motor part number, amp draw, and date on unit service tag</label></li>
+  </ul>
+</section>
+
+<footer>HVAC-Tools · Sherwin Elcock</footer>
+
+<script>
+  const boxes = document.querySelectorAll('input[type="checkbox"]');
+  const progress = document.getElementById('progress');
+
+  function updateProgress() {
+    const total = boxes.length;
+    const checked = document.querySelectorAll('input[type="checkbox"]:checked').length;
+    progress.textContent = checked + ' / ' + total + ' complete';
+  }
+
+  boxes.forEach(box => {
+    box.addEventListener('change', () => {
+      box.closest('li').classList.toggle('checked', box.checked);
+      updateProgress();
+    });
+  });
+
+  updateProgress();
+</script>
+
+</body>
+</html>
