@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quick Gauge Check</title>
+<style>
+  :root {
+    --bg: #121212;
+    --card: #1e1e1e;
+    --text: #e8e8e8;
+    --muted: #9a9a9a;
+    --accent: #4db6ac;
+    --border: #333;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    line-height: 1.5;
+  }
+  h1 {
+    font-size: 1.3rem;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 12px;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .card h2 {
+    font-size: 1rem;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  input[type="number"] {
+    width: 100%;
+    background: #262626;
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 1.1rem;
+    padding: 10px 12px;
+    border-radius: 6px;
+  }
+  input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .formula {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-style: italic;
+    margin-top: 6px;
+  }
+  .result {
+    margin-top: 14px;
+    padding: 12px;
+    background: #262626;
+    border-radius: 6px;
+    font-size: 1.05rem;
+  }
+  .result .label {
+    color: var(--muted);
+    font-size: 0.8rem;
+    display: block;
+    margin-bottom: 2px;
+  }
+  .result .value {
+    font-size: 1.4rem;
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .note {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 14px;
+  }
+  .card.in-range {
+    border-color: #4caf50;
+  }
+  .card.out-of-range {
+    border-color: #e53935;
+  }
+  input.in-range {
+    border-color: #4caf50 !important;
+  }
+  input.out-of-range {
+    border-color: #e53935 !important;
+  }
+</style>
+</head>
+<body>
+
+<h1>Quick Gauge Check</h1>
+<div class="subtitle">Fixed orifice systems, near design conditions</div>
+
+<div class="card" id="lowCard">
+  <h2>Low Side</h2>
+  <label for="returnTemp">Return air temp (°F)</label>
+  <input type="number" id="returnTemp" placeholder="e.g. 75" oninput="calc()">
+  <div class="result">
+    <span class="label">Target suction saturation temp</span>
+    <span class="value" id="lowResult">—</span>
+  </div>
+  <label for="lowGauge" style="margin-top:14px;">Actual low side gauge temp (°F)</label>
+  <input type="number" id="lowGauge" placeholder="e.g. 43" oninput="calc()">
+</div>
+
+<div class="card" id="highCard">
+  <h2>High Side</h2>
+  <label for="ambientTemp">Outdoor ambient temp (°F)</label>
+  <input type="number" id="ambientTemp" placeholder="e.g. 95" oninput="calc()">
+  <div class="result">
+    <span class="label">Target condensing saturation temp</span>
+    <span class="value" id="highResult">—</span>
+  </div>
+  <label for="highGauge" style="margin-top:14px;">Actual high side gauge temp (°F)</label>
+  <input type="number" id="highGauge" placeholder="e.g. 125" oninput="calc()">
+</div>
+
+<script>
+  function setState(cardEl, inputEl, inRange) {
+    cardEl.classList.remove('in-range', 'out-of-range');
+    inputEl.classList.remove('in-range', 'out-of-range');
+    if (inRange === null) return;
+    const cls = inRange ? 'in-range' : 'out-of-range';
+    cardEl.classList.add(cls);
+    inputEl.classList.add(cls);
+  }
+
+  function calc() {
+    const returnTemp = parseFloat(document.getElementById('returnTemp').value);
+    const ambientTemp = parseFloat(document.getElementById('ambientTemp').value);
+    const lowGauge = parseFloat(document.getElementById('lowGauge').value);
+    const highGauge = parseFloat(document.getElementById('highGauge').value);
+
+    const lowResult = document.getElementById('lowResult');
+    const highResult = document.getElementById('highResult');
+    const lowCard = document.getElementById('lowCard');
+    const highCard = document.getElementById('highCard');
+    const lowGaugeInput = document.getElementById('lowGauge');
+    const highGaugeInput = document.getElementById('highGauge');
+
+    // Low side
+    if (isNaN(returnTemp)) {
+      lowResult.textContent = '—';
+      setState(lowCard, lowGaugeInput, null);
+    } else {
+      const lowTarget = returnTemp - 32;
+      lowResult.textContent = lowTarget + '°F';
+      if (isNaN(lowGauge)) {
+        setState(lowCard, lowGaugeInput, null);
+      } else {
+        const inRange = Math.abs(lowGauge - lowTarget) <= 3;
+        setState(lowCard, lowGaugeInput, inRange);
+      }
+    }
+
+    // High side
+    if (isNaN(ambientTemp)) {
+      highResult.textContent = '—';
+      setState(highCard, highGaugeInput, null);
+    } else {
+      const rangeLow = ambientTemp + 25;
+      const rangeHigh = ambientTemp + 30;
+      highResult.textContent = rangeLow + '–' + rangeHigh + '°F';
+      if (isNaN(highGauge)) {
+        setState(highCard, highGaugeInput, null);
+      } else {
+        const inRange = highGauge >= rangeLow && highGauge <= rangeHigh;
+        setState(highCard, highGaugeInput, inRange);
+      }
+    }
+  }
+</script>
+
+</body>
+</html>
