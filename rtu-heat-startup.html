@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RTU Heat Startup Sequence | HVAC Tools</title>
+<style>
+  :root {
+    --bg: #121212;
+    --bg-card: #1c1c1c;
+    --bg-step: #202020;
+    --border: #333;
+    --accent: #ff9800;
+    --accent2: #4fc3f7;
+    --text: #e0e0e0;
+    --text-dim: #999;
+    --warn-bg: #3a2a12;
+    --warn-border: #ff9800;
+    --danger-bg: #3a1414;
+    --danger-border: #e53935;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    margin: 0;
+    padding: 0 0 60px 0;
+    line-height: 1.5;
+  }
+  header {
+    background: var(--bg-card);
+    border-bottom: 3px solid var(--accent);
+    padding: 24px 20px;
+    text-align: center;
+  }
+  header h1 {
+    margin: 0 0 6px 0;
+    font-size: 1.6rem;
+    color: var(--accent);
+  }
+  header p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 0.95rem;
+  }
+  main {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .back-link {
+    display: inline-block;
+    margin: 16px 20px 0 20px;
+    color: var(--accent2);
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  .back-link:hover { text-decoration: underline; }
+
+  .note-box {
+    background: var(--warn-bg);
+    border-left: 4px solid var(--warn-border);
+    padding: 14px 16px;
+    margin: 16px 0;
+    border-radius: 4px;
+    font-size: 0.95rem;
+  }
+  .danger-box {
+    background: var(--danger-bg);
+    border-left: 4px solid var(--danger-border);
+    padding: 14px 16px;
+    margin: 16px 0;
+    border-radius: 4px;
+    font-size: 0.95rem;
+  }
+  .note-box strong, .danger-box strong { color: #fff; }
+
+  h2.section-title {
+    color: var(--accent2);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+    margin-top: 36px;
+    font-size: 1.2rem;
+  }
+
+  .step {
+    background: var(--bg-step);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 10px 0;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .step-num {
+    background: var(--accent);
+    color: #121212;
+    font-weight: 700;
+    min-width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.9rem;
+  }
+  .step-content { flex: 1; }
+  .step-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #fff;
+  }
+  .step-detail {
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+  .step-detail code {
+    background: #2a2a2a;
+    color: var(--accent2);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.85em;
+  }
+
+  input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0;
+    font-size: 0.9rem;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    text-align: left;
+  }
+  th {
+    background: var(--bg-step);
+    color: var(--accent2);
+  }
+  td { background: var(--bg-card); }
+
+  footer {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    margin-top: 40px;
+    padding: 0 20px;
+  }
+
+  @media print {
+    body { background: #fff; color: #000; }
+  }
+</style>
+</head>
+<body>
+
+<a class="back-link" href="index.html">&larr; Back to Checklists</a>
+
+<header>
+  <h1>RTU Startup Sequence — Heat Mode</h1>
+  <p>Gas/Electric Rooftop Unit &middot; Sequence of Operation &amp; Startup Verification</p>
+</header>
+
+<main>
+
+  <div class="danger-box">
+    <strong>Before energizing:</strong> Confirm gas valve is off during electrical checks, disconnect is lockable, and no open flame/spark sources near unit if checking for gas leaks. Follow lockout/tagout on 3-phase disconnects.
+  </div>
+
+  <h2 class="section-title">1. Pre-Start Inspection (Power OFF)</h2>
+
+  <div class="step">
+    <span class="step-num">1</span>
+    <div class="step-content">
+      <div class="step-title">Visual inspection of unit</div>
+      <div class="step-detail">Check cabinet panels are secure, no visible corrosion/damage on heat exchanger access panel, curb flashing intact.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span>
+    <div class="step-content">
+      <div class="step-title">Verify line voltage at disconnect</div>
+      <div class="step-detail">Confirm voltage matches nameplate (<code>±10%</code>). Check all 3 legs on 3-phase for balance.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">3</span>
+    <div class="step-content">
+      <div class="step-title">Check control transformer</div>
+      <div class="step-detail">Verify 24V secondary present, no blown fuse on board.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">4</span>
+    <div class="step-content">
+      <div class="step-title">Inspect gas piping and connections</div>
+      <div class="step-detail">Check union, drip leg, manual shutoff valve position. Leak-check joints with soap solution or combustible gas detector before firing.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">5</span>
+    <div class="step-content">
+      <div class="step-title">Confirm gas pressure at meter/regulator</div>
+      <div class="step-detail">Typical incoming: <code>7" W.C.</code> natural gas (verify against unit's rated inlet pressure on nameplate).</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">6</span>
+    <div class="step-content">
+      <div class="step-title">Check filters, blower wheel, and coil</div>
+      <div class="step-detail">Replace/clean filters. Confirm blower wheel is clean and set screws are tight. Inspect evaporator coil for debris.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">7</span>
+    <div class="step-content">
+      <div class="step-title">Verify venting / combustion air path</div>
+      <div class="step-detail">Confirm flue is unobstructed, draft inducer housing is sealed, and outdoor combustion air intake screens are clear.</div>
+    </div>
+  </div>
+
+  <h2 class="section-title">2. Sequence of Operation — Call for Heat</h2>
+
+  <div class="step">
+    <span class="step-num">1</span>
+    <div class="step-content">
+      <div class="step-title">Thermostat calls for heat (W1)</div>
+      <div class="step-detail">24V signal sent from thermostat to <code>W</code> terminal on control board.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span>
+    <div class="step-content">
+      <div class="step-title">Board runs safety circuit check</div>
+      <div class="step-detail">Control board verifies high-limit switch, rollout switches, and pressure switch are in normal (closed for high-limit/rollout, or appropriate state for pressure switch) position before proceeding.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">3</span>
+    <div class="step-content">
+      <div class="step-title">Inducer motor (draft blower) energizes</div>
+      <div class="step-detail">Pre-purge begins — typically <code>15–30 seconds</code> to clear combustion chamber of residual gas before ignition.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">4</span>
+    <div class="step-content">
+      <div class="step-title">Pressure switch proves inducer airflow</div>
+      <div class="step-detail">Switch must close (prove negative pressure/draft) or ignition sequence halts and locks out — common fault point, check for blocked venting or weak inducer motor if this fails.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">5</span>
+    <div class="step-content">
+      <div class="step-title">Ignition sequence begins</div>
+      <div class="step-detail"><strong>Hot Surface Igniter (HSI):</strong> Glows for <code>15–30 sec</code> warm-up.<br><strong>Intermittent Pilot (IPI/Spark):</strong> Spark generator clicks to ignite pilot, pilot proven by flame sensor before main gas valve opens.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">6</span>
+    <div class="step-content">
+      <div class="step-title">Gas valve opens (main or combined pilot/main)</div>
+      <div class="step-detail">Gas flows to burners, ignites off HSI or proven pilot. Trial for ignition typically <code>4–7 seconds</code> — if not proven, board retries limited number of times then locks out.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">7</span>
+    <div class="step-content">
+      <div class="step-title">Flame sensor proves flame (rectification)</div>
+      <div class="step-detail">Microamp signal confirms stable flame — typically need <code>&gt;1–2 µA</code> depending on manufacturer. If signal is lost, gas valve closes within 0.8 seconds (safety shutoff).</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">8</span>
+    <div class="step-content">
+      <div class="step-title">Heat exchanger warms — blower delay</div>
+      <div class="step-detail">Supply air blower stays off for a fan-on delay (typically <code>30–45 sec</code>) to allow heat exchanger to warm before pushing air, preventing cold-air blow.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">9</span>
+    <div class="step-content">
+      <div class="step-title">Indoor/supply blower energizes on heat speed</div>
+      <div class="step-detail">Blower ramps to heating CFM/tap — normally lower CFM than cooling to control temperature rise across heat exchanger.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">10</span>
+    <div class="step-content">
+      <div class="step-title">Unit runs, maintaining setpoint</div>
+      <div class="step-detail">Monitor for consistent flame, stable gas pressure, and burner flame color/pattern.</div>
+    </div>
+  </div>
+
+  <h2 class="section-title">3. Call for Heat Satisfied / Shutdown Sequence</h2>
+
+  <div class="step">
+    <span class="step-num">1</span>
+    <div class="step-content">
+      <div class="step-title">Thermostat satisfied, W signal drops</div>
+      <div class="step-detail">Gas valve closes immediately, flame extinguishes.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">2</span>
+    <div class="step-content">
+      <div class="step-title">Blower continues — off delay</div>
+      <div class="step-detail">Supply blower runs an additional <code>90–180 sec</code> (varies by board) to extract remaining heat from exchanger, improving efficiency and preventing exchanger stress.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">3</span>
+    <div class="step-content">
+      <div class="step-title">Inducer motor post-purge (if equipped)</div>
+      <div class="step-detail">Some units run inducer briefly after flame-out to clear flue gases.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <span class="step-num">4</span>
+    <div class="step-content">
+      <div class="step-title">System returns to standby</div>
+      <div class="step-detail">Ready for next call for heat or cool.</div>
+    </div>
+  </div>
+
+  <h2 class="section-title">4. Startup Verification Checklist</h2>
+
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">Manifold gas pressure set correctly (compare to nameplate — typically <code>3.5" W.C.</code> NG / <code>10" W.C.</code> LP)</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">Temperature rise across heat exchanger within nameplate range (measure supply vs. return air temp)</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">Flame sensor microamp reading in acceptable range</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">No visible flame rollout or delayed ignition ("whump")</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">Burner flame is stable blue with defined inner cones — no yellow tipping/floating (incomplete combustion)</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">CO reading checked at flue with combustion analyzer (if available)</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">Blower amp draw within nameplate FLA</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">High-limit switch and rollout switches cycle test (if performing full commissioning)</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">Thermostat cycles unit properly through 2-3 calls for heat</div>
+  </div>
+  <div class="step">
+    <input type="checkbox">
+    <div class="step-content step-detail">Panels reinstalled, disconnect door closed, area clear</div>
+  </div>
+
+  <h2 class="section-title">5. Common Fault Points</h2>
+  <table>
+    <tr><th>Symptom</th><th>Likely Cause</th></tr>
+    <tr><td>Inducer runs, no ignition</td><td>Bad igniter, gas valve not opening, flame sensor dirty/corroded</td></tr>
+    <tr><td>Ignition trial, flame drops out</td><td>Flame sensor not grounded properly, weak microamp signal, gas pressure too low</td></tr>
+    <tr><td>Inducer won't start / pressure switch won't close</td><td>Blocked vent, bad inducer motor, cracked pressure switch hose, condensate blocking vent line</td></tr>
+    <tr><td>Short cycling on high limit</td><td>Airflow restriction (dirty filter/coil), blower speed too low, blocked ductwork</td></tr>
+    <tr><td>Delayed ignition ("boom" on startup)</td><td>Gas accumulation before ignition — check igniter output, gas valve response, or pre-purge timing</td></tr>
+    <tr><td>Nuisance lockouts</td><td>Weak flame signal, loose flame sensor wire, control board fault</td></tr>
+  </table>
+
+  <div class="note-box">
+    <strong>Note:</strong> Sequence timing and terminal designations vary by manufacturer (Carrier, Trane, Lennox, York, etc.) — always cross-reference the specific unit's wiring diagram and IOM before troubleshooting a no-heat call.
+  </div>
+
+</main>
+
+<footer>
+  HVAC Tools &middot; Service Call Checklists
+</footer>
+
+</body>
+</html>
