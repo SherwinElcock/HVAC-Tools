@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>AHU Map</title>
+<style>
+  :root{
+    --bg: #12151a;
+    --panel: #181c22;
+    --panel-2: #1f2530;
+    --line: #2c333f;
+    --ink: #e7ebf0;
+    --ink-dim: #8993a3;
+    --amber: #e8a33d;
+    --amber-dim: #6b5127;
+    --cyan: #4fc7d6;
+    --red: #d6614f;
+    --stroke-ink: #cfd8e3;
+    font-family: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; height:100%; background:var(--bg); color:var(--ink); overflow:hidden; }
+
+  #app { display:flex; flex-direction:column; height:100vh; height:100dvh; }
+
+  header {
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px;
+    background:var(--panel);
+    border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  header h1 {
+    font-size:13px; letter-spacing:.04em; font-weight:600;
+    color:var(--amber); margin:0; white-space:nowrap;
+  }
+  header .divider { width:1px; height:20px; background:var(--line); margin:0 2px; }
+
+  .seg { display:flex; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg button {
+    border:none; background:transparent; color:var(--ink-dim);
+    padding:8px 12px; font-size:12px; font-family:inherit; cursor:pointer;
+    border-right:1px solid var(--line); white-space:nowrap;
+  }
+  .seg button:last-child{ border-right:none; }
+  .seg button.active { background:var(--amber-dim); color:var(--amber); }
+
+  .btn {
+    background:var(--panel-2); border:1px solid var(--line); color:var(--ink-dim);
+    padding:8px 12px; border-radius:8px; font-size:12px; font-family:inherit; cursor:pointer;
+  }
+  .btn:active { background:var(--line); }
+  .btn.warn { color:var(--red); border-color:#4a2c27; }
+  .btn.primary { color:var(--cyan); border-color:#204449; }
+
+  #hint {
+    margin-left:auto; font-size:11px; color:var(--ink-dim); text-align:right; max-width:260px;
+  }
+
+  main { position:relative; flex:1; overflow:hidden; background:
+      linear-gradient(var(--panel) 1px, transparent 1px),
+      linear-gradient(90deg, var(--panel) 1px, transparent 1px),
+      var(--bg);
+    background-size: 28px 28px;
+  }
+  canvas { position:absolute; top:0; left:0; touch-action:none; display:block; }
+
+  .pin-label {
+    position:absolute; transform:translate(-50%,-135%);
+    background:var(--panel); border:1px solid var(--amber-dim); color:var(--amber);
+    font-size:11px; padding:2px 6px; border-radius:4px; white-space:nowrap; pointer-events:none;
+  }
+
+  #sidebar {
+    position:absolute; top:0; right:0; bottom:0; width:260px;
+    background:var(--panel); border-left:1px solid var(--line);
+    transform:translateX(100%); transition:transform .18s ease;
+    display:flex; flex-direction:column; z-index:20;
+  }
+  #sidebar.open { transform:translateX(0); }
+  #sidebar .sb-head {
+    padding:12px; border-bottom:1px solid var(--line);
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  #sidebar .sb-head span { font-size:12px; color:var(--ink-dim); letter-spacing:.04em; }
+  #unitList { overflow-y:auto; flex:1; }
+  .unit-row {
+    padding:10px 12px; border-bottom:1px solid var(--line);
+    display:flex; flex-direction:column; gap:2px; cursor:pointer;
+  }
+  .unit-row:active { background:var(--panel-2); }
+  .unit-row .u-id { color:var(--amber); font-size:13px; font-weight:600; }
+  .unit-row .u-meta { color:var(--ink-dim); font-size:11px; }
+  .empty-note { padding:20px 14px; color:var(--ink-dim); font-size:12px; line-height:1.5; }
+
+  #editSheet {
+    position:absolute; left:0; right:0; bottom:0; z-index:30;
+    background:var(--panel); border-top:1px solid var(--line);
+    border-radius:14px 14px 0 0;
+    padding:14px 16px calc(16px + env(safe-area-inset-bottom));
+    transform:translateY(100%); transition:transform .2s ease;
+    max-height:70vh; overflow-y:auto;
+  }
+  #editSheet.open { transform:translateY(0); }
+  #editSheet label { display:block; font-size:11px; color:var(--ink-dim); margin:10px 0 4px; letter-spacing:.03em; }
+  #editSheet input, #editSheet textarea {
+    width:100%; background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
+    padding:9px 10px; border-radius:8px; font-family:inherit; font-size:14px;
+  }
+  #editSheet textarea { resize:vertical; min-height:50px; }
+  .sheet-actions { display:flex; gap:8px; margin-top:16px; }
+  .sheet-actions .btn { flex:1; text-align:center; padding:11px; }
+  .sheet-title { font-size:13px; color:var(--amber); font-weight:600; }
+
+  #overlay { position:absolute; inset:0; background:rgba(0,0,0,.4); z-index:25; opacity:0; pointer-events:none; transition:opacity .2s; }
+  #overlay.open { opacity:1; pointer-events:auto; }
+
+  #toast {
+    position:absolute; left:50%; bottom:16px; transform:translateX(-50%) translateY(20px);
+    background:var(--panel-2); border:1px solid var(--line); color:var(--ink);
+    padding:8px 14px; border-radius:20px; font-size:12px; opacity:0; transition:all .25s; z-index:40; pointer-events:none;
+  }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  #distBadge {
+    position:absolute; background:var(--panel); border:1px solid var(--cyan); color:var(--cyan);
+    padding:4px 8px; border-radius:6px; font-size:12px; pointer-events:none; display:none; z-index:15;
+  }
+
+  #scalePrompt {
+    position:absolute; left:50%; top:14px; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--cyan); color:var(--ink);
+    padding:8px 12px; border-radius:8px; font-size:12px; display:none; align-items:center; gap:8px; z-index:15;
+  }
+  #scalePrompt input { width:70px; background:var(--panel-2); border:1px solid var(--line); color:var(--ink); padding:5px 7px; border-radius:6px; font-family:inherit; }
+  #scalePrompt button { background:var(--cyan); color:#06181a; border:none; padding:6px 10px; border-radius:6px; font-size:12px; font-family:inherit; }
+
+  ::-webkit-scrollbar{ width:6px; } ::-webkit-scrollbar-thumb{ background:var(--line); border-radius:3px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>AHU&nbsp;MAP</h1>
+    <div class="divider"></div>
+    <div class="seg" id="modeSeg">
+      <button data-mode="draw" class="active">Draw</button>
+      <button data-mode="place">Place</button>
+      <button data-mode="measure">Measure</button>
+    </div>
+    <button class="btn" id="undoBtn">Undo stroke</button>
+    <button class="btn" id="scaleBtn">Set scale</button>
+    <button class="btn warn" id="clearBtn">Clear all</button>
+    <button class="btn primary" id="listBtn">Units (<span id="unitCount">0</span>)</button>
+    <span id="hint">Draw the outline with your finger.</span>
+  </header>
+
+  <main id="mapWrap">
+    <canvas id="canvas"></canvas>
+    <div id="pinLayer"></div>
+    <div id="distBadge"></div>
+    <div id="scalePrompt">
+      <span>Real distance between points:</span>
+      <input id="scaleInput" type="number" inputmode="decimal" placeholder="ft" />
+      <button id="scaleConfirm">Set</button>
+    </div>
+  </main>
+
+  <div id="overlay"></div>
+  <div id="sidebar">
+    <div class="sb-head"><span>AIR HANDLERS</span><button class="btn" id="closeList">Close</button></div>
+    <div id="unitList"><div class="empty-note">No units placed yet. Switch to Place mode and tap the map where a unit sits.</div></div>
+  </div>
+
+  <div id="editSheet">
+    <div class="sheet-title" id="sheetTitle">New Unit</div>
+    <label>Unit ID</label>
+    <input id="fId" placeholder="AHU-1" />
+    <label>Tonnage / model</label>
+    <input id="fTon" placeholder="5 ton, Carrier 48TC" />
+    <label>Serial #</label>
+    <input id="fSerial" placeholder="" />
+    <label>Notes</label>
+    <textarea id="fNotes" placeholder="Filter size, last service, access notes..."></textarea>
+    <div class="sheet-actions">
+      <button class="btn warn" id="deleteUnitBtn">Delete</button>
+      <button class="btn" id="cancelSheetBtn">Cancel</button>
+      <button class="btn primary" id="saveSheetBtn">Save</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'ahu-map:default';
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const mapWrap = document.getElementById('mapWrap');
+const pinLayer = document.getElementById('pinLayer');
+
+let state = {
+  strokes: [],   // array of {points:[{x,y}...]}
+  units: [],     // {id(uuid), label, tonnage, serial, notes, x, y}
+  scale: null    // pixels per foot
+};
+
+let mode = 'draw';
+let currentStroke = null;
+let scaleStep = 0; // 0 idle, 1 waiting second point
+let scalePoints = [];
+let measureSelection = [];
+let editingUnitId = null;
+
+function resizeCanvas(){
+  const rect = mapWrap.getBoundingClientRect();
+  canvas.width = rect.width * devicePixelRatio;
+  canvas.height = rect.height * devicePixelRatio;
+  canvas.style.width = rect.width + 'px';
+  canvas.style.height = rect.height + 'px';
+  ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+  redraw();
+}
+window.addEventListener('resize', resizeCanvas);
+
+function redraw(){
+  const rect = mapWrap.getBoundingClientRect();
+  ctx.clearRect(0,0,rect.width,rect.height);
+  ctx.strokeStyle = '#cfd8e3';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  state.strokes.forEach(s=>{
+    if(s.points.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(s.points[0].x, s.points[0].y);
+    for(let i=1;i<s.points.length;i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+    ctx.stroke();
+  });
+  if(scalePoints.length){
+    ctx.fillStyle = '#4fc7d6';
+    scalePoints.forEach(p=>{
+      ctx.beginPath(); ctx.arc(p.x,p.y,5,0,Math.PI*2); ctx.fill();
+    });
+    if(scalePoints.length===2){
+      ctx.strokeStyle = '#4fc7d6';
+      ctx.setLineDash([5,4]);
+      ctx.beginPath();
+      ctx.moveTo(scalePoints[0].x, scalePoints[0].y);
+      ctx.lineTo(scalePoints[1].x, scalePoints[1].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+  renderPins();
+}
+
+function renderPins(){
+  pinLayer.innerHTML = '';
+  state.units.forEach(u=>{
+    const dot = document.createElement('div');
+    const selected = measureSelection.includes(u.id);
+    dot.style.position='absolute';
+    dot.style.left = u.x+'px';
+    dot.style.top = u.y+'px';
+    dot.style.width='16px'; dot.style.height='16px';
+    dot.style.marginLeft='-8px'; dot.style.marginTop='-8px';
+    dot.style.borderRadius='50%';
+    dot.style.background = selected ? '#4fc7d6' : '#e8a33d';
+    dot.style.border = '2px solid '+(selected ? '#0d2c30' : '#3a2c14');
+    dot.style.cursor='pointer';
+    dot.style.zIndex = 10;
+    dot.addEventListener('pointerdown', (e)=>{ e.stopPropagation(); onPinTap(u); });
+    pinLayer.appendChild(dot);
+
+    const label = document.createElement('div');
+    label.className = 'pin-label';
+    label.style.left = u.x+'px';
+    label.style.top = u.y+'px';
+    label.textContent = u.label || 'AHU';
+    pinLayer.appendChild(label);
+  });
+}
+
+function onPinTap(u){
+  if(mode === 'measure'){
+    if(measureSelection.includes(u.id)){
+      measureSelection = measureSelection.filter(id=>id!==u.id);
+    } else {
+      measureSelection.push(u.id);
+      if(measureSelection.length > 2) measureSelection.shift();
+    }
+    updateDistanceBadge();
+    redraw();
+    return;
+  }
+  openEditSheet(u);
+}
+
+function updateDistanceBadge(){
+  const badge = document.getElementById('distBadge');
+  if(measureSelection.length === 2){
+    const a = state.units.find(u=>u.id===measureSelection[0]);
+    const b = state.units.find(u=>u.id===measureSelection[1]);
+    if(a && b){
+      const pxDist = Math.hypot(a.x-b.x, a.y-b.y);
+      let text;
+      if(state.scale){
+        const feet = pxDist / state.scale;
+        text = feet.toFixed(1) + ' ft between ' + (a.label||'unit') + ' & ' + (b.label||'unit');
+      } else {
+        text = 'No scale set — tap "Set scale" first for real distance';
+      }
+      badge.textContent = text;
+      badge.style.display = 'block';
+      badge.style.left = ((a.x+b.x)/2) + 'px';
+      badge.style.top = ((a.y+b.y)/2 - 30) + 'px';
+      return;
+    }
+  }
+  badge.style.display = 'none';
+}
+
+// ---- pointer handling on canvas/map ----
+function getLocalPoint(e){
+  const rect = mapWrap.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+mapWrap.addEventListener('pointerdown', (e)=>{
+  const p = getLocalPoint(e);
+
+  if(scaleStep > 0){
+    scalePoints.push(p);
+    redraw();
+    if(scalePoints.length === 2){
+      document.getElementById('scalePrompt').style.display = 'flex';
+    }
+    return;
+  }
+
+  if(mode === 'draw'){
+    currentStroke = { points: [p] };
+    state.strokes.push(currentStroke);
+    mapWrap.setPointerCapture(e.pointerId);
+  } else if(mode === 'place'){
+    const newUnit = {
+      id: 'u'+Date.now()+Math.random().toString(36).slice(2,6),
+      label: 'AHU-'+(state.units.length+1),
+      tonnage:'', serial:'', notes:'',
+      x: p.x, y: p.y
+    };
+    state.units.push(newUnit);
+    redraw();
+    renderUnitList();
+    saveState();
+    openEditSheet(newUnit, true);
+  }
+});
+mapWrap.addEventListener('pointermove', (e)=>{
+  if(mode === 'draw' && currentStroke){
+    const p = getLocalPoint(e);
+    currentStroke.points.push(p);
+    redraw();
+  }
+});
+mapWrap.addEventListener('pointerup', ()=>{
+  if(currentStroke){ currentStroke = null; saveState(); }
+});
+mapWrap.addEventListener('pointercancel', ()=>{ currentStroke = null; });
+
+// ---- mode switching ----
+const hint = document.getElementById('hint');
+const hints = {
+  draw: 'Draw the outline with your finger.',
+  place: 'Tap the map where a unit sits.',
+  measure: 'Tap two units to see the distance.'
+};
+document.getElementById('modeSeg').addEventListener('click', (e)=>{
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  mode = btn.dataset.mode;
+  document.querySelectorAll('#modeSeg button').forEach(b=>b.classList.toggle('active', b===btn));
+  hint.textContent = hints[mode];
+  measureSelection = [];
+  updateDistanceBadge();
+  redraw();
+});
+
+document.getElementById('undoBtn').addEventListener('click', ()=>{
+  state.strokes.pop();
+  redraw();
+  saveState();
+});
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  if(confirm('Clear the outline and all units? This cannot be undone.')){
+    state = { strokes:[], units:[], scale:null };
+    measureSelection = [];
+    redraw();
+    renderUnitList();
+    saveState();
+    showToast('Cleared');
+  }
+});
+
+// ---- scale calibration ----
+document.getElementById('scaleBtn').addEventListener('click', ()=>{
+  scaleStep = 1;
+  scalePoints = [];
+  document.getElementById('scalePrompt').style.display = 'none';
+  showToast('Tap two points on the map a known distance apart');
+});
+document.getElementById('scaleConfirm').addEventListener('click', ()=>{
+  const val = parseFloat(document.getElementById('scaleInput').value);
+  if(!val || val <= 0){ showToast('Enter a valid distance'); return; }
+  const pxDist = Math.hypot(scalePoints[0].x-scalePoints[1].x, scalePoints[0].y-scalePoints[1].y);
+  state.scale = pxDist / val;
+  scaleStep = 0;
+  scalePoints = [];
+  document.getElementById('scalePrompt').style.display = 'none';
+  document.getElementById('scaleInput').value = '';
+  redraw();
+  saveState();
+  updateDistanceBadge();
+  showToast('Scale set: ' + val + ' ft');
+});
+
+// ---- sidebar / unit list ----
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('overlay');
+document.getElementById('listBtn').addEventListener('click', ()=>{
+  sidebar.classList.add('open'); overlay.classList.add('open');
+});
+document.getElementById('closeList').addEventListener('click', closeSidebar);
+overlay.addEventListener('click', ()=>{ closeSidebar(); closeSheet(); });
+function closeSidebar(){ sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+
+function renderUnitList(){
+  const list = document.getElementById('unitList');
+  document.getElementById('unitCount').textContent = state.units.length;
+  if(state.units.length === 0){
+    list.innerHTML = '<div class="empty-note">No units placed yet. Switch to Place mode and tap the map where a unit sits.</div>';
+    return;
+  }
+  list.innerHTML = '';
+  state.units.forEach(u=>{
+    const row = document.createElement('div');
+    row.className = 'unit-row';
+    row.innerHTML = `<span class="u-id">${escapeHtml(u.label||'AHU')}</span><span class="u-meta">${escapeHtml(u.tonnage||'')}${u.serial? ' · SN '+escapeHtml(u.serial):''}</span>`;
+    row.addEventListener('click', ()=>{ closeSidebar(); openEditSheet(u); });
+    list.appendChild(row);
+  });
+}
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ---- edit sheet ----
+const editSheet = document.getElementById('editSheet');
+function openEditSheet(u, isNew){
+  editingUnitId = u.id;
+  document.getElementById('sheetTitle').textContent = isNew ? 'New Unit' : 'Edit Unit';
+  document.getElementById('fId').value = u.label||'';
+  document.getElementById('fTon').value = u.tonnage||'';
+  document.getElementById('fSerial').value = u.serial||'';
+  document.getElementById('fNotes').value = u.notes||'';
+  editSheet.classList.add('open');
+  overlay.classList.add('open');
+}
+function closeSheet(){ editSheet.classList.remove('open'); overlay.classList.remove('open'); editingUnitId = null; }
+
+document.getElementById('cancelSheetBtn').addEventListener('click', closeSheet);
+document.getElementById('saveSheetBtn').addEventListener('click', ()=>{
+  const u = state.units.find(x=>x.id===editingUnitId);
+  if(!u) return;
+  u.label = document.getElementById('fId').value.trim() || u.label;
+  u.tonnage = document.getElementById('fTon').value.trim();
+  u.serial = document.getElementById('fSerial').value.trim();
+  u.notes = document.getElementById('fNotes').value.trim();
+  closeSheet();
+  redraw();
+  renderUnitList();
+  saveState();
+  showToast('Saved');
+});
+document.getElementById('deleteUnitBtn').addEventListener('click', ()=>{
+  state.units = state.units.filter(x=>x.id!==editingUnitId);
+  measureSelection = measureSelection.filter(id=>id!==editingUnitId);
+  closeSheet();
+  redraw();
+  renderUnitList();
+  saveState();
+  updateDistanceBadge();
+  showToast('Deleted');
+});
+
+// ---- toast ----
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 1800);
+}
+
+// ---- persistence ----
+async function saveState(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+  }catch(err){
+    console.error('Save failed', err);
+    showToast('Could not save — changes may be lost');
+  }
+}
+async function loadState(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      state = Object.assign({strokes:[],units:[],scale:null}, parsed);
+    }
+  }catch(err){
+    // no saved state yet
+  }
+  resizeCanvas();
+  renderUnitList();
+  updateDistanceBadge();
+}
+
+loadState();
+</script>
+</body>
+</html>
