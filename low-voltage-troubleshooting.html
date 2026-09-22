@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Low-Voltage Troubleshooting — R, C, W, Y, G</title>
+<style>
+  :root {
+    --bg: #000000;
+    --panel: #0d0d0d;
+    --line: #2c3037;
+    --text: #e7e6e2;
+    --dim2: #9ea1a8;
+    --accent: #d98a2b;
+    --ok: #5a9b6c;
+    --bad: #b5544a;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    line-height: 1.55;
+  }
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px 96px;
+  }
+  header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 24px;
+    margin-bottom: 40px;
+  }
+  header .kicker {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+  }
+  h1 {
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 8px 0 6px;
+    letter-spacing: -0.01em;
+  }
+  header p {
+    color: var(--dim2);
+    font-size: 15px;
+    max-width: 58ch;
+    margin: 0;
+  }
+  h2 {
+    font-size: 1.15rem;
+    margin: 44px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .wires {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 18px 0 36px;
+  }
+  .wire {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+  }
+  .wire b {
+    color: var(--accent);
+    font-size: 15px;
+    margin-right: 8px;
+  }
+  .wire span {
+    color: var(--dim2);
+    font-family: Georgia, serif;
+  }
+  ol.steps {
+    padding-left: 0;
+    list-style: none;
+    counter-reset: step;
+    margin: 18px 0;
+  }
+  ol.steps > li {
+    counter-increment: step;
+    position: relative;
+    padding: 18px 0 18px 46px;
+    border-bottom: 1px solid var(--line);
+  }
+  ol.steps > li:last-child { border-bottom: none; }
+  ol.steps > li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 18px;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .step-title {
+    font-weight: 600;
+    font-size: 1.02rem;
+    margin-bottom: 8px;
+  }
+  .readouts {
+    margin-top: 10px;
+    display: grid;
+    gap: 6px;
+  }
+  .readout {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    padding: 8px 12px;
+    border-left: 3px solid var(--line);
+    background: rgba(255,255,255,0.02);
+  }
+  .readout.ok { border-left-color: var(--ok); }
+  .readout.bad { border-left-color: var(--bad); }
+  .readout .v {
+    color: var(--accent);
+    margin-right: 8px;
+  }
+  ul.gotchas {
+    padding-left: 20px;
+    margin: 14px 0;
+  }
+  ul.gotchas li {
+    margin-bottom: 10px;
+    color: var(--dim2);
+    font-size: 15px;
+  }
+  ul.gotchas li b { color: var(--text); }
+  .principle {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    margin: 24px 0;
+    font-size: 15px;
+    color: var(--dim2);
+  }
+  .principle b { color: var(--text); }
+  footer {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #6b6e74;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  @media (max-width: 520px) {
+    .wires { grid-template-columns: 1fr; }
+    h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="kicker">SERVICE CALL CHECKLIST</div>
+    <h1>Low-Voltage Troubleshooting</h1>
+    <p>Tracing the 24V control circuit: R, C, W, Y, G, O/B. Work transformer → stat → board → safeties → load, checking for 24V at each stop.</p>
+  </header>
+
+  <h2>Wire reference</h2>
+  <div class="wires">
+    <div class="wire"><b>R</b><span>Power from transformer (24V hot)</span></div>
+    <div class="wire"><b>C</b><span>Common — completes circuit to transformer</span></div>
+    <div class="wire"><b>Y</b><span>Cooling call — energizes contactor</span></div>
+    <div class="wire"><b>W</b><span>Heat call</span></div>
+    <div class="wire"><b>G</b><span>Fan call</span></div>
+    <div class="wire"><b>O/B</b><span>Reversing valve (heat pumps) — O=cool, B=heat</span></div>
+  </div>
+
+  <h2>Troubleshooting sequence</h2>
+  <ol class="steps">
+    <li>
+      <div class="step-title">Confirm the transformer</div>
+      Meter across R and C at the board, no call active.
+      <div class="readouts">
+        <div class="readout ok"><span class="v">~24-28V</span>Transformer is good, move to step 2.</div>
+        <div class="readout bad"><span class="v">0V</span>Transformer dead or fused output blown. Nothing downstream will work until this is fixed.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-title">Confirm the stat is sending the call</div>
+      With a call active, check R to Y (or R to W / R to G) at the equipment board.
+      <div class="readouts">
+        <div class="readout ok"><span class="v">24V</span>Call is reaching the board. Move to step 3.</div>
+        <div class="readout bad"><span class="v">0V</span>Break is between stat and board — check thermostat wiring, loose terminals, or the stat itself.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-title">Confirm the board is passing the call through</div>
+      Check the output side — Y to C right at the board's output terminal.
+      <div class="readouts">
+        <div class="readout ok"><span class="v">24V</span>Board is passing the call. Move to step 4.</div>
+        <div class="readout bad"><span class="v">0V (but 24V on input)</span>Board itself, or a safety wired into it (float switch, high-limit), is holding the call.</div>
+      </div>
+    </li>
+    <li>
+      <div class="step-title">Check the load</div>
+      Contactor coil terminals, gas valve, etc.
+      <div class="readouts">
+        <div class="readout bad"><span class="v">24V present, load not energizing</span>Load itself is bad — replace contactor/coil or valve.</div>
+        <div class="readout bad"><span class="v">0V at load</span>Something in that leg (float switch, high-limit, pressure switch) is breaking it before it arrives. Check each safety in series — 24V across an open switch, 0V across a closed one.</div>
+      </div>
+    </li>
+  </ol>
+
+  <div class="principle">
+    <b>Key principle:</b> work in one direction — transformer, then stat, then board, then safeties, then load — checking for 24V at each stop. Wherever voltage disappears is the problem.
+  </div>
+
+  <h2>Common gotchas</h2>
+  <ul class="gotchas">
+    <li><b>Condensate float switch tripped</b> — kills Y (sometimes R) on many systems. The most common no-cool call.</li>
+    <li><b>Missing C wire</b> — older systems without one may run stats on battery or power-stealing, which can cause erratic behavior.</li>
+    <li><b>Shorted thermostat wire</b> — bare wires touching can blow the transformer fuse or trip the breaker. Check for a short in the wire run before condemning the transformer on 0V at R-C.</li>
+  </ul>
+
+  <footer>
+    <a href="https://github.com/SherwinElcock/HVAC-Tools">SherwinElcock / HVAC-Tools</a>
+  </footer>
+
+</div>
+</body>
+</html>
