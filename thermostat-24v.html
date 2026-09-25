@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>24V Thermostat Reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#262b31; --panel:#2f353c; --line:#414952;
+  --text:#ebe8e2; --muted:#a3abb4;
+  --plate:#d4cfc4; --plate-edge:#b5afa2; --brass:#b8923a;
+  --r:#d63a2f; --w:#f3f2ee; --y:#e8c23a; --g:#3f9e4f; --c:#3a78c9; --o:#e8812a; --w2:#8a5a36; --y2:#c9b27a;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 17px/1.55 "Barlow",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:28px 18px 64px}
+h1,h2,h3{font-family:"Barlow Condensed","Arial Narrow",sans-serif;line-height:1.15;margin:0}
+h1{font-size:2.3rem;font-weight:700}
+h2{font-size:1.6rem;font-weight:600;margin:44px 0 12px;padding-top:18px;border-top:1px solid var(--line)}
+h3{font-size:1.2rem;font-weight:600;margin:18px 0 6px}
+p{margin:0 0 12px}
+.lede{color:var(--muted);margin-top:6px;max-width:60ch}
+a{color:#8fb8e8}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:3px solid #8fb8e8;outline-offset:2px}
+
+/* controls */
+.controls{margin-top:24px;display:grid;gap:12px}
+.group-label{font-size:.9rem;color:var(--muted);margin-bottom:6px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:8px 12px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--text);color:var(--bg);border-color:var(--text)}
+
+/* the subbase */
+.plate{margin-top:18px;background:linear-gradient(var(--plate),#c9c3b6);border:2px solid var(--plate-edge);border-radius:14px;padding:18px 10px 14px;color:#2f2b25}
+.strip{display:grid;grid-template-columns:repeat(8,1fr);gap:4px}
+.term{background:none;border:0;padding:4px 0;display:flex;flex-direction:column;align-items:center;gap:6px;color:#2f2b25;border-radius:8px}
+.term .lbl{font:700 1.05rem "Barlow Condensed",sans-serif}
+.screw{width:30px;height:30px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#e3c77d,var(--brass) 60%,#7e6224);position:relative;box-shadow:inset 0 0 0 2px #7e6224}
+.screw::before,.screw::after{content:"";position:absolute;left:50%;top:50%;background:#5c4718;transform:translate(-50%,-50%)}
+.screw::before{width:16px;height:3px}.screw::after{width:3px;height:16px}
+.wire{width:8px;height:44px;border-radius:4px;background:var(--wc);opacity:.28;transition:opacity .2s,box-shadow .2s}
+.term.on .wire{opacity:1;box-shadow:0 0 0 2px #2f2b25,0 0 14px 2px var(--wc)}
+.term.src .wire{opacity:1;box-shadow:0 0 0 2px #2f2b25}
+.term.ret .wire{opacity:.85}
+.term[aria-expanded="true"]{background:rgba(47,43,37,.12)}
+.plate-note{font-size:.85rem;margin-top:10px;text-align:center;color:#554e44}
+.readout{margin-top:14px;background:var(--panel);border-left:4px solid var(--y);border-radius:6px;padding:14px 16px}
+.readout strong{font-family:"Barlow Condensed",sans-serif;font-size:1.25rem;font-weight:600;display:block;margin-bottom:4px}
+.info{margin-top:10px;background:var(--panel);border-radius:6px;padding:14px 16px;border:1px solid var(--line)}
+.info h3{margin-top:0}
+
+/* content */
+ol,ul{padding-left:1.3em;margin:0 0 12px}
+li{margin-bottom:8px}
+.fault{border:1px solid var(--line);border-radius:6px;padding:12px 16px;margin-bottom:10px}
+.fault h3{margin-top:0}
+.fault p{margin:0 0 6px}
+.fault .k{color:var(--muted)}
+.warn{background:#3b2b28;border-left:4px solid var(--r);border-radius:6px;padding:12px 16px;margin:14px 0}
+kbd{font-family:inherit;font-weight:600;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+@media (max-width:420px){.screw{width:24px;height:24px}.term .lbl{font-size:.95rem}.wire{height:36px}h1{font-size:2rem}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<h1>24V thermostat reference</h1>
+<p class="lede">Pick the system and what the thermostat is calling for. The terminals that get 24V light up. Tap any terminal for what it does.</p>
+
+<div class="controls">
+  <div>
+    <div class="group-label" id="sys-label">System</div>
+    <div class="seg" role="group" aria-labelledby="sys-label" id="sys"></div>
+  </div>
+  <div>
+    <div class="group-label" id="mode-label">Call</div>
+    <div class="seg" role="group" aria-labelledby="mode-label" id="mode"></div>
+  </div>
+</div>
+
+<div class="plate">
+  <div class="strip" id="strip"></div>
+  <p class="plate-note">Wire colors shown are common, not guaranteed. Always trace to the equipment terminal.</p>
+</div>
+<div class="readout" id="readout" aria-live="polite"></div>
+<div class="info" id="info" hidden></div>
+
+<h2>Meter checks at the thermostat and air handler</h2>
+<p>Set your meter to AC volts. Work in this order so you split the problem in half each step.</p>
+<ol>
+  <li><kbd>R</kbd> to <kbd>C</kbd> at the control board should read about 24–28V. Zero means no transformer output, a blown board fuse (usually 3 or 5A), an open door switch, or an open float or condensate switch in the R line.</li>
+  <li>Same <kbd>R</kbd> to <kbd>C</kbd> check at the thermostat. Good at the board but dead at the thermostat means a broken or disconnected wire in between.</li>
+  <li>With a call for cooling, measure <kbd>Y</kbd> to <kbd>C</kbd> at the board. 24V means the thermostat is doing its job, so move to the equipment.</li>
+  <li>Measure across the contactor coil at the condenser. 24V there with the contactor not pulling in means a bad coil or contactor. No voltage there means a broken Y or C wire outside, or an open safety switch (high or low pressure) wired in series.</li>
+  <li>To rule out the thermostat, pull it off and jumper <kbd>R</kbd> to <kbd>Y</kbd> and <kbd>G</kbd> at the wall or board. If the system runs, the thermostat or its settings are the problem.</li>
+</ol>
+<div class="warn"><strong>Never jumper R to C.</strong> That shorts the transformer and blows the fuse, or the transformer itself.</div>
+
+<h2>The C wire</h2>
+<p>C is the other side of the transformer. It lets a smart or Wi‑Fi thermostat power itself. Without it, the thermostat "power steals" by leaking current through Y, W, or G, which causes resets, blank screens, Wi‑Fi dropouts, and relays or fans that chatter or cycle on their own.</p>
+<ul>
+  <li>First look for an unused conductor tucked back in the wall and at the air handler. Hook it to C on both ends.</li>
+  <li>No spare conductor: pull new 18/5 or 18/8, or use an add-a-wire or C-wire adapter kit.</li>
+  <li>Moving the G wire to C works in a pinch, but the customer loses independent fan control. Tell them before you do it.</li>
+</ul>
+
+<h2>Common faults</h2>
+<div class="fault"><h3>Thermostat screen blank</h3>
+<p><span class="k">Check:</span> dead batteries, then R to C at the board. Look for a blown fuse, tripped float switch, or open blower door switch.</p></div>
+<div class="fault"><h3>Fuse keeps blowing</h3>
+<p><span class="k">Check:</span> a shorted wire. Staples through the cable, chewed wires, or a Y/C line at the condenser nicked by a trimmer are the usual causes. Also ohm the contactor coil. Disconnect wires one leg at a time to find which circuit is shorted.</p></div>
+<div class="fault"><h3>Heat pump heats when it should cool</h3>
+<p><span class="k">Check:</span> the thermostat is set to O but the unit needs B, or the reverse. Most brands use O (valve energized in cool). Rheem and Ruud use B (valve energized in heat).</p></div>
+<div class="fault"><h3>Blower won't shut off</h3>
+<p><span class="k">Check:</span> fan set to On at the thermostat, a G wire shorted to R, or a stuck relay on the board.</p></div>
+<div class="fault"><h3>Electric heat runs but no airflow</h3>
+<p><span class="k">Check:</span> the thermostat is set for gas heat, so it isn't sending G with W. Change the heat type setting to electric.</p></div>
+<div class="fault"><h3>Short cycling</h3>
+<p><span class="k">Check:</span> thermostat location (sun, supply register, drafty wall), cycle rate or differential settings, and power stealing on a thermostat without a C wire.</p></div>
+
+<h2>Replacing a thermostat</h2>
+<ul>
+  <li>Take a photo of the old wiring before you disconnect anything, and label the wires.</li>
+  <li>Wire colors mean nothing on their own. Go by the terminal each wire lands on at the equipment.</li>
+  <li>Rh and Rc with a jumper: one transformer, leave the jumper. Two transformers (like a boiler plus a separate AC): remove the jumper and keep them separate.</li>
+  <li>Old mercury thermostats need proper disposal. Don't toss them in the truck trash.</li>
+  <li>If the old thermostat is 120V or 240V (baseboard heat), it's a line-voltage thermostat. None of this applies, so kill the power.</li>
+  <li>Set the equipment type, O/B, heat type, and stages in the new thermostat's installer menu before you leave.</li>
+</ul>
+
+<h2>Wire</h2>
+<p>Thermostat cable is 18 gauge. It's sold by conductor count: 18/2, 18/5, 18/8. Pull more conductors than you need. A spare C or a second stage later costs nothing now. Rooftop units use the same letters, usually with Y1/Y2 and W1/W2 for staging.</p>
+</main>
+
+<script>
+const T = {
+  "C":  {c:"var(--c)", name:"Common", d:"The return side of the 24V transformer. Powers smart thermostats. Every load (contactor coil, gas valve, relays) returns through C."},
+  "R":  {c:"var(--r)", name:"24V hot", d:"Hot side of the transformer. The thermostat switches R to the other terminals to make a call. Some thermostats split this into Rh (heat) and Rc (cool) with a jumper between them."},
+  "G":  {c:"var(--g)", name:"Indoor fan", d:"Turns on the indoor blower. Sent with Y for cooling. On a gas furnace, the furnace board runs its own blower in heat, so G usually isn't sent."},
+  "Y1": {c:"var(--y)", name:"Compressor, stage 1", d:"Energizes the contactor coil at the outdoor unit. Compressor and condenser fan run. On a heat pump, Y runs the compressor in both cooling and heating."},
+  "Y2": {c:"var(--y2)", name:"Compressor, stage 2", d:"Second stage or high capacity on two-stage equipment. Common on rooftop units."},
+  "W1": {c:"var(--w)", name:"Heat, stage 1", d:"Starts the furnace sequence (inducer, ignition, gas valve) or first bank of electric strips. On some heat pump thermostats this is labeled Aux or E instead."},
+  "W2": {c:"var(--w2)", name:"Heat stage 2 / Aux", d:"Second stage of furnace heat, or backup electric strips on a heat pump. Aux comes on when the heat pump can't keep up."},
+  "O/B":{c:"var(--o)", name:"Reversing valve", d:"O energizes the valve in cooling (most brands). B energizes it in heating (Rheem, Ruud). Set wrong, the heat pump runs backwards."}
+};
+const order = ["C","R","G","Y1","Y2","W1","W2","O/B"];
+const SYS = {
+  gas:{label:"Gas furnace + AC", modes:{
+    cool:{on:["Y1","G"], t:"Contactor pulls in, compressor and condenser fan run, indoor blower runs."},
+    heat:{on:["W1"], t:"Furnace runs its own sequence: inducer, ignition, gas valve, then the board starts the blower after a delay. Thermostat does not send G."},
+    fan:{on:["G"], t:"Indoor blower only."}}},
+  elec:{label:"Electric air handler + AC", modes:{
+    cool:{on:["Y1","G"], t:"Same as any AC: compressor, condenser fan, indoor blower."},
+    heat:{on:["W1","G"], t:"Heat strips energize. The thermostat must send G with W, so set its heat type to electric."},
+    fan:{on:["G"], t:"Indoor blower only."}}},
+  hpo:{label:"Heat pump (O)", modes:{
+    cool:{on:["Y1","G","O/B"], t:"Compressor runs and O energizes the reversing valve into cooling."},
+    heat:{on:["Y1","G"], t:"Compressor runs with the reversing valve de-energized, so it heats."},
+    aux:{on:["Y1","G","W2"], t:"Heat pump runs plus backup strips because it can't keep up."},
+    em:{on:["G","W2"], t:"Emergency heat: compressor locked out, strips only. Some thermostats use an E terminal here."},
+    fan:{on:["G"], t:"Indoor blower only."}}},
+  hpb:{label:"Heat pump (B)", modes:{
+    cool:{on:["Y1","G"], t:"Compressor runs with the valve de-energized, which is cooling on a B system."},
+    heat:{on:["Y1","G","O/B"], t:"B energizes the reversing valve into heating."},
+    aux:{on:["Y1","G","O/B","W2"], t:"Heat pump in heat plus backup strips."},
+    em:{on:["G","W2"], t:"Emergency heat: compressor locked out, strips only."},
+    fan:{on:["G"], t:"Indoor blower only."}}}
+};
+const MODE_LABEL = {cool:"Cool", heat:"Heat", aux:"Aux heat", em:"Emergency heat", fan:"Fan only"};
+let sys="gas", mode="cool", open=null;
+
+const strip=document.getElementById("strip");
+order.forEach(k=>{
+  const b=document.createElement("button");
+  b.className="term"; b.dataset.k=k; b.setAttribute("aria-expanded","false");
+  b.style.setProperty("--wc",T[k].c);
+  b.innerHTML=`<span class="screw" aria-hidden="true"></span><span class="wire" aria-hidden="true"></span><span class="lbl">${k}</span>`;
+  b.setAttribute("aria-label",`${k}, ${T[k].name}`);
+  b.onclick=()=>{open = open===k?null:k; render();};
+  strip.appendChild(b);
+});
+
+function seg(id,items,cur,set){
+  const el=document.getElementById(id); el.innerHTML="";
+  items.forEach(([v,l])=>{
+    const b=document.createElement("button");
+    b.textContent=l; b.setAttribute("aria-pressed",v===cur);
+    b.onclick=()=>set(v); el.appendChild(b);
+  });
+}
+function render(){
+  seg("sys",Object.entries(SYS).map(([k,v])=>[k,v.label]),sys,v=>{sys=v; if(!SYS[sys].modes[mode]) mode="cool"; render();});
+  seg("mode",Object.keys(SYS[sys].modes).map(k=>[k,MODE_LABEL[k]]),mode,v=>{mode=v; render();});
+  const m=SYS[sys].modes[mode];
+  document.querySelectorAll(".term").forEach(t=>{
+    const k=t.dataset.k;
+    t.classList.toggle("on",m.on.includes(k));
+    t.classList.toggle("src",k==="R");
+    t.classList.toggle("ret",k==="C");
+    t.setAttribute("aria-expanded",open===k);
+  });
+  document.getElementById("readout").innerHTML =
+    `<strong>R switched to ${m.on.join(", ")}</strong>${m.t} Measure each of those to C: about 24V means the thermostat is calling.`;
+  const info=document.getElementById("info");
+  if(open){ info.hidden=false; info.innerHTML=`<h3>${open}: ${T[open].name}</h3><p>${T[open].d}</p>`; }
+  else info.hidden=true;
+}
+render();
+</script>
+</body>
+</html>
