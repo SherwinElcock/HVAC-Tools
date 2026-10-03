@@ -113,6 +113,21 @@
   .actions { display: flex; gap: 10px; }
   .empty { text-align: center; padding: 48px 12px; }
 
+  /* photos */
+  .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .thumbs:empty { display: none; }
+  .thumb { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; background: var(--panel); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; cursor: pointer; }
+  .thumb .x {
+    position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border-radius: 50%; border: 0;
+    background: rgba(10, 16, 22, .8); color: #fff; font-size: 20px; line-height: 1; cursor: pointer;
+  }
+  .photo-label { color: var(--muted); font-size: 13px; margin: 10px 0 6px; }
+  #viewer { width: 100vw; max-width: 100vw; height: 100%; max-height: 100%; margin: 0; border: 0; border-radius: 0; background: #000; padding: 0; }
+  #viewer[open] { display: grid; place-items: center; }
+  #viewer img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  #viewer .btn { position: fixed; top: calc(10px + env(safe-area-inset-top, 0px)); right: 10px; }
+
   /* form dialog */
   dialog {
     width: 100%; max-width: 720px; max-height: 100%; margin: 0 auto; border: 0; padding: 0;
@@ -165,8 +180,10 @@
     </div>
     <div class="form-body">
       <div class="field"><label for="f_call_date">Date</label><input id="f_call_date" name="call_date" type="date" required></div>
-      <div class="field"><label for="f_customer">Customer or site</label><input id="f_customer" name="customer" required></div>
-      <div class="field"><label for="f_address">Address</label><input id="f_address" name="address" autocomplete="street-address"></div>
+      <div class="field"><label for="f_customer">Customer or site</label><input id="f_customer" name="customer" list="custList" autocomplete="off" required>
+        <datalist id="custList"></datalist></div>
+      <div class="field"><label for="f_address">Address</label><input id="f_address" name="address" list="addrList" autocomplete="off" placeholder="Start typing to pick a saved address">
+        <datalist id="addrList"></datalist></div>
       <div class="field"><label for="f_equipment_type">Equipment</label>
         <input id="f_equipment_type" name="equipment_type" list="eqTypes" placeholder="RTU, split system, furnace…">
         <datalist id="eqTypes">
@@ -212,18 +229,26 @@
       <div class="field"><label for="f_work_done">What I did</label><textarea id="f_work_done" name="work_done"></textarea></div>
       <div class="field"><label for="f_parts">Parts used</label><textarea id="f_parts" name="parts"></textarea></div>
       <div class="field"><label for="f_notes">Notes</label><textarea id="f_notes" name="notes"></textarea></div>
+      <div class="field">
+        <label>Photos</label>
+        <div class="thumbs" id="formThumbs"></div>
+        <input type="file" id="f_photos" accept="image/*" multiple hidden>
+        <button type="button" class="btn" id="addPhotos">Add photos</button>
+      </div>
       <p class="msg" id="formMsg"></p>
       <button class="btn primary" id="saveBtn" style="width:100%">Save call</button>
     </div>
   </form>
 </dialog>
 
+<dialog id="viewer"><img id="viewerImg" alt="Call photo"><button type="button" class="btn" id="viewerClose">Close</button></dialog>
+
 <script>
 /* ================== YOUR SUPABASE SETTINGS ==================
    Supabase dashboard > Project Settings > API Keys (and Data API for the URL).
    Use the PUBLISHABLE key (or legacy "anon" key). NEVER the secret / service_role key. */
-const SUPABASE_URL = "https://cywdtmqkenwfjsmevepn.supabase.co"     // like https://abcd1234.supabase.co
-const SUPABASE_KEY = "sb_publishable_wGXVzoneuhWmOr34cKJruw_1i0_qxEl";  // starts with sb_publishable_ or eyJ...
+const SUPABASE_URL = "PASTE_YOUR_PROJECT_URL_HERE";      // like https://abcd1234.supabase.co
+const SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";  // starts with sb_publishable_ or eyJ...
 /* =========================================================== */
 
 const FIELDS = ["call_date","customer","address","equipment_type","make","model","serial","filter_size",
@@ -251,7 +276,7 @@ function showView(signedIn) {
   $("boot").hidden = true;
   $("auth").hidden = signedIn;
   $("app").hidden = !signedIn;
-  if (signedIn) load();
+  if (signedIn) { load(); loadSuggestions(); }
 }
 sb.auth.getSession()
   .then(({ data, error }) => { if (error) showProblem(error.message); else showView(!!data.session); })
@@ -297,7 +322,7 @@ function el(tag, cls, text) {
   return n;
 }
 
-function groupKey(r) { return (r.address || r.customer || "").trim().toLowerCase(); }
+function groupKey(r) { return (r.address || r.customer || "").trim().replace(/\s+/g, " ").toLowerCase(); }
 
 function render(searching) {
   const list = $("list");
@@ -385,8 +410,165 @@ function details(r) {
   const del = el("button", "btn danger", "Delete");
   del.onclick = () => remove(r);
   acts.append(edit, del);
-  det.append(acts);
+  const thumbs = el("div", "thumbs");
+  det.append(thumbs, acts);
+  getPhotos(r.id).then(list => {
+    if (!list.length) return;
+    thumbs.before(el("p", "photo-label", list.length === 1 ? "1 photo" : `${list.length} photos`));
+    for (const ph of list) thumbs.append(thumb(ph.url));
+  });
   return det;
+}
+
+/* ---------- saved address + customer suggestions ---------- */
+const norm = v => (v || "").trim().replace(/\s+/g, " ").toLowerCase();
+let addrInfo = new Map();   // address -> { address, customer } (newest spelling wins)
+let custInfo = new Map();   // customer -> { customer, addresses: Set }
+
+async function loadSuggestions() {
+  const { data, error } = await sb.from("service_calls")
+    .select("address, customer").order("call_date", { ascending: false }).limit(5000);
+  if (error) return;                       // suggestions are optional; the form still works
+  addrInfo = new Map(); custInfo = new Map();
+  for (const r of data) {
+    const a = norm(r.address), c = norm(r.customer);
+    if (a && !addrInfo.has(a)) addrInfo.set(a, { address: r.address.trim(), customer: r.customer });
+    if (c) {
+      if (!custInfo.has(c)) custInfo.set(c, { customer: r.customer.trim(), addresses: new Set() });
+      if (r.address) custInfo.get(c).addresses.add(r.address.trim());
+    }
+  }
+  const fill = (id, values) => $(id).replaceChildren(...values.sort((x, y) =>
+    x.localeCompare(y, undefined, { numeric: true, sensitivity: "base" })).map(v => { const o = document.createElement("option"); o.value = v; return o; }));
+  fill("addrList", [...addrInfo.values()].map(x => x.address));
+  fill("custList", [...custInfo.values()].map(x => x.customer));
+}
+
+// picking a saved address fills in the customer (if blank), and vice versa
+$("f_address").addEventListener("change", () => {
+  const hit = addrInfo.get(norm($("f_address").value));
+  if (!hit) return;
+  $("f_address").value = hit.address;       // snap to the saved spelling so visits group together
+  if (!$("f_customer").value.trim()) $("f_customer").value = hit.customer;
+});
+$("f_customer").addEventListener("change", () => {
+  const hit = custInfo.get(norm($("f_customer").value));
+  if (!hit) return;
+  $("f_customer").value = hit.customer;
+  if (!$("f_address").value.trim() && hit.addresses.size === 1) $("f_address").value = [...hit.addresses][0];
+});
+
+/* ---------- photos ---------- */
+const BUCKET = "call-photos";
+const photoCache = new Map();   // call id -> { at, list: [{id, path, url}] }
+let pendingFiles = [];          // new photos picked in the form: {file, preview}
+let keptPhotos = [];            // saved photos still attached while editing
+let removedPhotos = [];         // saved photos to delete when the form is saved
+
+async function getPhotos(callId) {
+  const hit = photoCache.get(callId);
+  if (hit && Date.now() - hit.at < 45 * 60 * 1000) return hit.list;   // signed links last 1 hour
+  const { data, error } = await sb.from("call_photos").select("id, path").eq("call_id", callId).order("created_at");
+  if (error) return [];
+  let list = [];
+  if (data.length) {
+    const s2 = await sb.storage.from(BUCKET).createSignedUrls(data.map(p => p.path), 3600);
+    if (s2.error) return [];
+    list = data.map((p, i) => ({ ...p, url: s2.data[i] && s2.data[i].signedUrl })).filter(p => p.url);
+  }
+  photoCache.set(callId, { at: Date.now(), list });
+  return list;
+}
+
+function thumb(src, onRemove) {
+  const w = el("div", "thumb");
+  const img = document.createElement("img");
+  img.src = src; img.alt = "Call photo"; img.loading = "lazy";
+  img.onclick = () => openViewer(src);
+  w.append(img);
+  if (onRemove) {
+    const x = el("button", "x", "×");
+    x.type = "button";
+    x.setAttribute("aria-label", "Remove photo");
+    x.onclick = onRemove;
+    w.append(x);
+  }
+  return w;
+}
+
+function openViewer(src) { $("viewerImg").src = src; $("viewer").showModal(); }
+$("viewer").onclick = () => $("viewer").close();
+
+function renderFormPhotos() {
+  const box = $("formThumbs");
+  box.replaceChildren();
+  for (const p of keptPhotos) box.append(thumb(p.url, () => {
+    keptPhotos = keptPhotos.filter(x => x !== p); removedPhotos.push(p); renderFormPhotos();
+  }));
+  for (const p of pendingFiles) box.append(thumb(p.preview, () => {
+    URL.revokeObjectURL(p.preview); pendingFiles = pendingFiles.filter(x => x !== p); renderFormPhotos();
+  }));
+}
+function resetFormPhotos() {
+  for (const p of pendingFiles) URL.revokeObjectURL(p.preview);
+  pendingFiles = []; keptPhotos = []; removedPhotos = [];
+  renderFormPhotos();
+}
+$("addPhotos").onclick = () => $("f_photos").click();
+$("f_photos").onchange = e => {
+  for (const f of e.target.files) pendingFiles.push({ file: f, preview: URL.createObjectURL(f) });
+  e.target.value = "";
+  renderFormPhotos();
+};
+
+// shrink a phone photo to about 300 KB: long side 1600 px, JPEG
+function shrink(file, max = 1600, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.naturalWidth * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b => b ? resolve(b) : reject(new Error("couldn't process the photo")), "image/jpeg", quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("couldn't read that photo")); };
+    img.src = url;
+  });
+}
+
+async function savePhotos(callId) {
+  const problems = [];
+  for (const p of [...removedPhotos]) {
+    const { error } = await sb.storage.from(BUCKET).remove([p.path]);
+    if (error) { problems.push("couldn't remove a photo: " + error.message); continue; }
+    await sb.from("call_photos").delete().eq("id", p.id);
+    removedPhotos = removedPhotos.filter(x => x !== p);
+  }
+  const { data: { session } } = await sb.auth.getSession();
+  const total = pendingFiles.length;
+  let n = 0;
+  for (const p of [...pendingFiles]) {
+    n++;
+    $("saveBtn").textContent = `Uploading photo ${n} of ${total}…`;
+    try {
+      const blob = await shrink(p.file);
+      const path = `${session.user.id}/${callId}/${crypto.randomUUID()}.jpg`;
+      const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
+      if (up.error) throw up.error;
+      const ins = await sb.from("call_photos").insert({ call_id: callId, path });
+      if (ins.error) { await sb.storage.from(BUCKET).remove([path]); throw ins.error; }
+      URL.revokeObjectURL(p.preview);
+      pendingFiles = pendingFiles.filter(x => x !== p);
+    } catch (err) {
+      problems.push(err.message);
+    }
+  }
+  photoCache.delete(callId);
+  return problems;
 }
 
 /* ---------- add / edit / delete ---------- */
@@ -402,6 +584,7 @@ function openNew() {
   $("formTitle").textContent = "New call";
   $("saveBtn").textContent = "Save call";
   $("formMsg").textContent = "";
+  resetFormPhotos();
   $("dlg").showModal();
   $("f_customer").focus();
 }
@@ -411,10 +594,12 @@ function openEdit(r) {
   $("formTitle").textContent = "Edit call";
   $("saveBtn").textContent = "Save changes";
   $("formMsg").textContent = "";
+  resetFormPhotos();
   $("dlg").showModal();
+  getPhotos(r.id).then(list => { if (editingId === r.id) { keptPhotos = [...list]; renderFormPhotos(); } });
 }
 $("newBtn").onclick = openNew;
-$("cancelBtn").onclick = () => $("dlg").close();
+$("cancelBtn").onclick = () => { resetFormPhotos(); $("dlg").close(); };
 
 $("callForm").addEventListener("submit", async e => {
   e.preventDefault();
@@ -424,20 +609,38 @@ $("callForm").addEventListener("submit", async e => {
   const res = editingId
     ? await sb.from("service_calls").update(rec).eq("id", editingId).select().single()
     : await sb.from("service_calls").insert(rec).select().single();
+  if (res.error) {
+    $("saveBtn").disabled = false;
+    $("formMsg").textContent = "Not saved: " + res.error.message;
+    return;
+  }
+  const label = $("saveBtn").textContent;
+  editingId = res.data.id;                       // a retry updates this call instead of adding a copy
+  const problems = await savePhotos(res.data.id);
   $("saveBtn").disabled = false;
-  if (res.error) { $("formMsg").textContent = "Not saved: " + res.error.message; return; }
+  $("saveBtn").textContent = label;
   openId = res.data.id;
   openGroup = groupKey(res.data);
-  $("dlg").close();
   load();
+  loadSuggestions();
+  if (problems.length) {
+    $("formMsg").textContent = `Call saved, but ${problems.length === 1 ? "a photo" : problems.length + " photos"} didn't upload (${problems[0]}). Tap Save again to retry.`;
+    return;
+  }
+  resetFormPhotos();
+  $("dlg").close();
 });
 
 async function remove(r) {
   if (!confirm(`Delete the ${fmtDate(r.call_date)} call at ${r.customer}? This can't be undone.`)) return;
+  const ph = await sb.from("call_photos").select("path").eq("call_id", r.id);
+  if (ph.data && ph.data.length) await sb.storage.from(BUCKET).remove(ph.data.map(p => p.path));
+  photoCache.delete(r.id);
   const { error } = await sb.from("service_calls").delete().eq("id", r.id);
   if (error) { alert("Not deleted: " + error.message); return; }
   openId = null;
   load();
+  loadSuggestions();
 }
 </script>
 </body>
