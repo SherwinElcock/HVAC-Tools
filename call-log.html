@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#151c25">
+<title>Call Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  /* ===== 1. PASTE YOUR SUPABASE VALUES IN THE <script> AT THE BOTTOM ===== */
+  :root {
+    --bg: #151c25;       /* galvanized slate */
+    --panel: #1e2834;
+    --panel-2: #26323f;
+    --line: #34434f;
+    --text: #e7edf2;
+    --muted: #93a3b1;
+    --low: #4ba3ff;      /* low-side blue: primary actions */
+    --high: #ff5d5d;     /* high-side red: delete */
+    --radius: 10px;
+    --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --head: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  *, *::before, *::after { box-sizing: inherit; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body { font: 17px/1.5 var(--body); -webkit-text-size-adjust: 100%; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+  h1, h2 { font-family: var(--head); font-weight: 700; letter-spacing: .01em; margin: 0; }
+  h1 { font-size: 34px; line-height: 1; }
+  h2 { font-size: 26px; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--low); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+
+  .btn {
+    border: 0; border-radius: var(--radius); padding: 12px 18px; cursor: pointer;
+    font-weight: 600; background: var(--panel-2); min-height: 48px;
+  }
+  .btn.primary { background: var(--low); color: #06192e; }
+  .btn.danger { background: transparent; color: var(--high); border: 1px solid var(--high); }
+  .btn.quiet { background: transparent; color: var(--muted); padding: 8px 4px; min-height: 0; }
+  .btn:disabled { opacity: .55; cursor: default; }
+
+  label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; font-weight: 500; }
+  input, textarea, select {
+    width: 100%; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 12px; font-size: 17px;
+  }
+  textarea { min-height: 84px; resize: vertical; }
+  .field { margin-bottom: 14px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  @media (max-width: 520px) { .row3 { grid-template-columns: 1fr; gap: 0; } }
+
+  .group { border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 12px 0; margin: 0 0 14px; }
+  .group legend { font-family: var(--head); font-weight: 600; font-size: 19px; padding: 0 6px; }
+  .msg { color: var(--high); min-height: 1.5em; font-size: 15px; }
+  .muted { color: var(--muted); }
+
+  /* sign in */
+  #auth { max-width: 380px; margin: 12vh auto 0; }
+  #auth h1 { margin-bottom: 4px; }
+  #auth p { margin: 0 0 24px; }
+
+  /* top bar */
+  .top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .bar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg);
+    display: flex; gap: 10px; padding: 8px 0 12px; border-bottom: 1px solid var(--line);
+  }
+  .bar input { flex: 1; }
+  .count { font-size: 14px; margin: 12px 0 6px; }
+
+  /* list: the left edge reads like a gauge needle, blue line per call */
+  .call { border-left: 3px solid var(--low); background: var(--panel); border-radius: 0 var(--radius) var(--radius) 0; margin-bottom: 10px; }
+  .call > button {
+    all: unset; display: block; width: 100%; padding: 12px 14px; cursor: pointer; box-sizing: border-box;
+  }
+  .call > button:focus-visible { outline: 2px solid var(--low); }
+  .line1 { display: flex; justify-content: space-between; gap: 10px; }
+  .cust { font-weight: 600; }
+  .date { color: var(--muted); font-size: 14px; white-space: nowrap; }
+  .eq { color: var(--muted); font-size: 15px; }
+  .snip { font-size: 15px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .detail { padding: 0 14px 14px; border-top: 1px solid var(--line); }
+  .detail dl { margin: 12px 0; }
+  .detail dt { color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .detail dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .actions { display: flex; gap: 10px; }
+
+  .empty { text-align: center; padding: 48px 12px; }
+
+  /* form dialog */
+  dialog {
+    width: 100%; max-width: 720px; max-height: 100%; margin: 0 auto; border: 0; padding: 0;
+    background: var(--bg); color: var(--text);
+  }
+  @media (min-width: 760px) { dialog { margin-top: 4vh; max-height: 92vh; border-radius: 14px; border: 1px solid var(--line); } }
+  dialog::backdrop { background: rgba(5, 10, 16, .7); }
+  .form-head {
+    position: sticky; top: 0; z-index: 1; background: var(--bg); display: flex; align-items: center;
+    justify-content: space-between; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; border-bottom: 1px solid var(--line);
+  }
+  .form-body { padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px)); }
+</style>
+</head>
+<body>
+
+<!-- sign in -->
+<section id="auth" class="wrap" hidden>
+  <h1>Call Log</h1>
+  <p class="muted">Sign in to see your service calls.</p>
+  <form id="authForm">
+    <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <p class="msg" id="authMsg"></p>
+    <button class="btn primary" style="width:100%">Sign in</button>
+  </form>
+</section>
+
+<!-- main -->
+<main id="app" class="wrap" hidden>
+  <div class="top">
+    <h1>Call Log</h1>
+    <button class="btn quiet" id="signOut">Sign out</button>
+  </div>
+  <div class="bar">
+    <input id="search" type="search" placeholder="Search customer, model, serial, notes…" autocomplete="off" aria-label="Search calls">
+    <button class="btn primary" id="newBtn">New call</button>
+  </div>
+  <p class="count muted" id="count"></p>
+  <div id="list"></div>
+</main>
+
+<!-- add / edit -->
+<dialog id="dlg">
+  <form id="callForm">
+    <div class="form-head">
+      <h2 id="formTitle">New call</h2>
+      <button type="button" class="btn quiet" id="cancelBtn">Cancel</button>
+    </div>
+    <div class="form-body">
+      <div class="field"><label for="f_call_date">Date</label><input id="f_call_date" name="call_date" type="date" required></div>
+      <div class="field"><label for="f_customer">Customer or site</label><input id="f_customer" name="customer" required></div>
+      <div class="field"><label for="f_address">Address</label><input id="f_address" name="address" autocomplete="street-address"></div>
+      <div class="field"><label for="f_equipment_type">Equipment</label>
+        <input id="f_equipment_type" name="equipment_type" list="eqTypes" placeholder="RTU, split system, furnace…">
+        <datalist id="eqTypes">
+          <option value="RTU"><option value="Split system"><option value="Heat pump"><option value="Furnace">
+          <option value="Boiler"><option value="Mini-split"><option value="Chiller"><option value="Make-up air unit">
+          <option value="Walk-in cooler"><option value="Walk-in freezer"><option value="Reach-in"><option value="Ice machine">
+          <option value="Exhaust fan"><option value="Unit heater"><option value="CRAC / CRAH">
+        </datalist>
+      </div>
+      <div class="row3">
+        <div class="field"><label for="f_make">Make</label><input id="f_make" name="make"></div>
+        <div class="field"><label for="f_model">Model</label><input id="f_model" name="model" autocapitalize="characters"></div>
+        <div class="field"><label for="f_serial">Serial</label><input id="f_serial" name="serial" autocapitalize="characters"></div>
+      </div>
+      <div class="field"><label for="f_filter_size">Filter size</label>
+        <input id="f_filter_size" name="filter_size" placeholder="20x25x2, qty 4" autocapitalize="off"></div>
+
+      <fieldset class="group">
+        <legend>Unit location</legend>
+        <div class="field"><label for="f_unit_location">Where</label>
+          <input id="f_unit_location" name="unit_location" list="unitLocs" placeholder="Roof, 2nd floor, mech room…"></div>
+        <div class="field"><label for="f_unit_location_details">Specifics</label>
+          <textarea id="f_unit_location_details" name="unit_location_details" placeholder="Office 204, above ceiling tile by the east wall"></textarea></div>
+      </fieldset>
+      <datalist id="unitLocs">
+        <option value="Roof"><option value="Mechanical room"><option value="Above ceiling"><option value="Basement">
+        <option value="Attic"><option value="Closet"><option value="Ground, outside"><option value="1st floor"><option value="2nd floor"><option value="3rd floor">
+      </datalist>
+
+      <fieldset class="group">
+        <legend>Thermostat location</legend>
+        <div class="field"><label for="f_stat_location">Where</label>
+          <input id="f_stat_location" name="stat_location" list="statLocs" placeholder="2nd floor, front office…"></div>
+        <div class="field"><label for="f_stat_location_details">Specifics</label>
+          <textarea id="f_stat_location_details" name="stat_location_details" placeholder="Wall by the door, behind the locked cover, key at front desk"></textarea></div>
+      </fieldset>
+      <datalist id="statLocs">
+        <option value="Front office"><option value="Hallway"><option value="Conference room"><option value="Break room">
+        <option value="Sales floor"><option value="Remote / BAS"><option value="1st floor"><option value="2nd floor"><option value="3rd floor">
+      </datalist>
+      <div class="field"><label for="f_complaint">Complaint</label><textarea id="f_complaint" name="complaint"></textarea></div>
+      <div class="field"><label for="f_findings">What I found</label><textarea id="f_findings" name="findings"></textarea></div>
+      <div class="field"><label for="f_work_done">What I did</label><textarea id="f_work_done" name="work_done"></textarea></div>
+      <div class="field"><label for="f_parts">Parts used</label><textarea id="f_parts" name="parts"></textarea></div>
+      <div class="field"><label for="f_notes">Notes</label><textarea id="f_notes" name="notes"></textarea></div>
+      <p class="msg" id="formMsg"></p>
+      <button class="btn primary" id="saveBtn" style="width:100%">Save call</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+/* ================== YOUR SUPABASE SETTINGS ==================
+   Supabase dashboard > Project Settings > API Keys (and Data API for the URL).
+   Use the PUBLISHABLE key (or legacy "anon" key). NEVER the secret / service_role key. */
+const SUPABASE_URL = "PASTE_YOUR_PROJECT_URL_HERE";      // like https://abcd1234.supabase.co
+const SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";  // starts with sb_publishable_ or eyJ...
+/* =========================================================== */
+
+const FIELDS = ["call_date","customer","address","equipment_type","make","model","serial","filter_size",
+  "unit_location","unit_location_details","stat_location","stat_location_details","complaint","findings","work_done","parts","notes"];
+const LABELS = { address:"Address", complaint:"Complaint", findings:"What I found", work_done:"What I did", parts:"Parts used", notes:"Notes" };
+const $ = id => document.getElementById(id);
+
+if (SUPABASE_URL.startsWith("PASTE")) {
+  document.body.innerHTML = '<div class="wrap"><h1>Call Log</h1><p>Add your Supabase URL and key near the bottom of this file.</p></div>';
+  throw new Error("Supabase not configured");
+}
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let rows = [];
+let editingId = null;
+let openId = null;
+
+/* ---------- auth ---------- */
+function showView(signedIn) {
+  $("auth").hidden = signedIn;
+  $("app").hidden = !signedIn;
+  if (signedIn) load();
+}
+sb.auth.getSession().then(({ data }) => showView(!!data.session));
+sb.auth.onAuthStateChange((evt, session) => {
+  if (evt === "SIGNED_IN" || evt === "SIGNED_OUT") showView(!!session);
+});
+
+$("authForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  $("authMsg").textContent = "";
+  const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
+  if (error) $("authMsg").textContent = error.message;
+});
+$("signOut").addEventListener("click", () => sb.auth.signOut());
+
+/* ---------- load + search ---------- */
+async function load() {
+  const raw = $("search").value.toLowerCase().replace(/[%_\\]/g, " ").trim();
+  const terms = raw ? raw.split(/\s+/) : [];
+  let q = sb.from("service_calls").select("*")
+    .order("call_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(terms.length ? 200 : 50);
+  for (const t of terms) q = q.ilike("search_text", `%${t}%`);   // every word must match somewhere
+  const { data, error } = await q;
+  if (error) { $("count").textContent = "Couldn't load calls: " + error.message; return; }
+  rows = data;
+  render(terms.length > 0);
+}
+let timer;
+$("search").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(load, 300); });
+
+/* ---------- render ---------- */
+function fmtDate(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+function el(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+function render(searching) {
+  const list = $("list");
+  list.replaceChildren();
+  $("count").textContent = searching
+    ? `${rows.length} ${rows.length === 1 ? "match" : "matches"}`
+    : rows.length ? `Latest ${rows.length} ${rows.length === 1 ? "call" : "calls"}` : "";
+
+  if (!rows.length) {
+    const box = el("div", "empty");
+    box.append(el("p", "muted", searching ? "No calls match that search. Try a shorter word or part of a serial." : "No calls logged yet."));
+    if (!searching) { const b = el("button", "btn primary", "Log your first call"); b.onclick = openNew; box.append(b); }
+    list.append(box);
+    return;
+  }
+
+  for (const r of rows) {
+    const art = el("article", "call");
+    const head = document.createElement("button");
+    head.setAttribute("aria-expanded", r.id === openId);
+    const l1 = el("div", "line1");
+    l1.append(el("span", "cust", r.customer), el("span", "date", fmtDate(r.call_date)));
+    head.append(l1);
+    const eq = [r.equipment_type, r.make, r.model].filter(Boolean).join(" ");
+    if (eq) head.append(el("div", "eq", eq));
+    const snip = r.complaint || r.findings || r.notes;
+    if (snip) head.append(el("div", "snip", snip));
+    head.onclick = () => { openId = openId === r.id ? null : r.id; render(searching); };
+    art.append(head);
+
+    if (r.id === openId) {
+      const det = el("div", "detail");
+      const dl = document.createElement("dl");
+      const add = (label, val) => { if (val) dl.append(el("dt", null, label), el("dd", null, val)); };
+      add("Address", r.address);
+      add("Equipment", r.equipment_type);
+      add("Make / model", [r.make, r.model].filter(Boolean).join(" / "));
+      add("Serial", r.serial);
+      add("Filter size", r.filter_size);
+      add("Unit location", [r.unit_location, r.unit_location_details].filter(Boolean).join("\n"));
+      add("Thermostat location", [r.stat_location, r.stat_location_details].filter(Boolean).join("\n"));
+      for (const k of ["complaint","findings","work_done","parts","notes"]) add(LABELS[k], r[k]);
+      det.append(dl);
+      const acts = el("div", "actions");
+      const edit = el("button", "btn", "Edit");
+      edit.onclick = () => openEdit(r);
+      const del = el("button", "btn danger", "Delete");
+      del.onclick = () => remove(r);
+      acts.append(edit, del);
+      det.append(acts);
+      art.append(det);
+    }
+    list.append(art);
+  }
+}
+
+/* ---------- add / edit / delete ---------- */
+function today() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 10);
+}
+function openNew() {
+  editingId = null;
+  $("callForm").reset();
+  $("f_call_date").value = today();
+  $("formTitle").textContent = "New call";
+  $("saveBtn").textContent = "Save call";
+  $("formMsg").textContent = "";
+  $("dlg").showModal();
+  $("f_customer").focus();
+}
+function openEdit(r) {
+  editingId = r.id;
+  for (const k of FIELDS) $("f_" + k).value = r[k] ?? "";
+  $("formTitle").textContent = "Edit call";
+  $("saveBtn").textContent = "Save changes";
+  $("formMsg").textContent = "";
+  $("dlg").showModal();
+}
+$("newBtn").onclick = openNew;
+$("cancelBtn").onclick = () => $("dlg").close();
+
+$("callForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const rec = {};
+  for (const k of FIELDS) { const v = $("f_" + k).value.trim(); rec[k] = v === "" ? null : v; }
+  $("saveBtn").disabled = true;
+  const res = editingId
+    ? await sb.from("service_calls").update(rec).eq("id", editingId).select().single()
+    : await sb.from("service_calls").insert(rec).select().single();
+  $("saveBtn").disabled = false;
+  if (res.error) { $("formMsg").textContent = "Not saved: " + res.error.message; return; }
+  openId = res.data.id;
+  $("dlg").close();
+  load();
+});
+
+async function remove(r) {
+  if (!confirm(`Delete the ${fmtDate(r.call_date)} call at ${r.customer}? This can't be undone.`)) return;
+  const { error } = await sb.from("service_calls").delete().eq("id", r.id);
+  if (error) { alert("Not deleted: " + error.message); return; }
+  openId = null;
+  load();
+}
+</script>
+</body>
+</html>
