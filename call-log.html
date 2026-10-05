@@ -4,20 +4,39 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#151c25">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Call Log">
 <title>Call Log</title>
+<link rel="manifest" href="call-log.webmanifest">
+<link rel="apple-touch-icon" href="call-log-apple-touch.png">
+<link rel="icon" href="call-log-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
 <script>
-  // Shows any problem on screen instead of a blank page
+  // Shows any problem on screen instead of a blank page (but stays quiet about no-signal errors)
+  function isNetMsg(m) { return /failed to fetch|load failed|networkerror|network request failed|network error|fetch/i.test(m || ""); }
   function showProblem(text) {
     var box = document.getElementById("boot");
     if (!box) { document.addEventListener("DOMContentLoaded", function () { showProblem(text); }); return; }
     box.hidden = false;
     box.textContent = "Problem: " + text;
   }
-  window.addEventListener("error", function (e) { showProblem((e.message || "a script failed to load") + (e.lineno ? " (line " + e.lineno + ")" : "")); }, true);
-  window.addEventListener("unhandledrejection", function (e) { showProblem((e.reason && e.reason.message) || String(e.reason)); });
+  window.addEventListener("error", function (e) {
+    if (e.target && e.target !== window) {               // a file failed to load
+      if (!navigator.onLine || e.target.tagName !== "SCRIPT") return;
+      showProblem("a script failed to load: " + e.target.src); return;
+    }
+    if (isNetMsg(e.message)) return;
+    showProblem((e.message || "something went wrong") + (e.lineno ? " (line " + e.lineno + ")" : ""));
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) {
+    var m = (e.reason && e.reason.message) || String(e.reason);
+    if (isNetMsg(m)) return;
+    showProblem(m);
+  });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -32,6 +51,7 @@
     --muted: #93a3b1;
     --low: #4ba3ff;      /* low-side blue: primary actions */
     --high: #ff5d5d;     /* high-side red: delete */
+    --amber: #f2b84b;    /* waiting to sync */
     --radius: 10px;
     --body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
     --head: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
@@ -57,22 +77,30 @@
   .btn.primary { background: var(--low); color: #06192e; }
   .btn.danger { background: transparent; color: var(--high); border: 1px solid var(--high); }
   .btn.quiet { background: transparent; color: var(--muted); padding: 8px 4px; min-height: 0; }
+  .btn.small { min-height: 36px; padding: 6px 12px; font-size: 15px; }
   .btn:disabled { opacity: .55; cursor: default; }
 
   label { display: block; font-size: 14px; color: var(--muted); margin-bottom: 4px; font-weight: 500; }
+  label .u { opacity: .75; font-weight: 400; }
   input, textarea, select {
     width: 100%; background: var(--panel); border: 1px solid var(--line);
     border-radius: var(--radius); padding: 12px; font-size: 17px;
   }
+  select { appearance: none; -webkit-appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+    background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; padding-right: 36px; }
   textarea { min-height: 84px; resize: vertical; }
   .field { margin-bottom: 14px; }
   .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
   @media (max-width: 520px) { .row3 { grid-template-columns: 1fr; gap: 0; } }
+  .nums { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); column-gap: 10px; }
 
   .group { border: 1px solid var(--line); border-radius: var(--radius); padding: 4px 12px 0; margin: 0 0 14px; }
   .group legend { font-family: var(--head); font-weight: 600; font-size: 19px; padding: 0 6px; }
   .msg { color: var(--high); min-height: 1.5em; font-size: 15px; }
   .muted { color: var(--muted); }
+  .hint { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+  .last { background: var(--panel-2); border-left: 3px solid var(--low); border-radius: 6px; padding: 8px 10px; margin: 6px 0 12px; font-size: 15px; }
+  .last b { font-weight: 600; color: var(--text); }
 
   /* sign in */
   #auth { max-width: 380px; margin: 12vh auto 0; }
@@ -80,7 +108,11 @@
   #auth p { margin: 0 0 24px; }
 
   /* top bar */
-  .top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+  .status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 15px; padding: 8px 12px; margin-bottom: 10px;
+    border-radius: var(--radius); background: var(--panel); border-left: 3px solid var(--amber); }
+  .status.bad { border-left-color: var(--high); }
+  .status span { flex: 1 1 200px; }
   .bar {
     position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; background: var(--bg);
     display: flex; gap: 10px; padding: 8px 0 12px; border-bottom: 1px solid var(--line);
@@ -102,6 +134,7 @@
   .who { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; font-size: 15px; }
   .meta { color: var(--muted); font-size: 14px; white-space: nowrap; flex: none; }
   .badge { display: inline-block; min-width: 22px; text-align: center; padding: 1px 7px; margin-left: 6px; border-radius: 99px; background: var(--panel-2); color: var(--text); font-size: 13px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); flex: none; }
   .calls { background: var(--panel); border-left: 3px solid var(--cowboys-blue); padding-bottom: 6px; }
   .row { min-height: 44px; padding: 6px 10px 6px 18px; border-top: 1px solid var(--line); font-size: 15px; }
   .row .d { color: var(--muted); white-space: nowrap; flex: none; width: 92px; }
@@ -111,8 +144,17 @@
   .detail dl { margin: 0 0 12px; padding-top: 2px; }
   .detail dt { color: var(--muted); font-size: 13px; margin-top: 10px; }
   .detail dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .actions { display: flex; gap: 10px; }
+  .pending-note { color: var(--amber); font-size: 14px; padding-top: 10px; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; }
   .empty { text-align: center; padding: 48px 12px; }
+
+  /* unit history */
+  .unit { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--low); border-radius: var(--radius); padding: 12px 14px; margin: 12px 0; }
+  .unit h2 { font-size: 24px; line-height: 1.1; }
+  .unit .where { color: var(--muted); font-size: 15px; margin: 2px 0 8px; }
+  .unit dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 14px; margin: 0 0 12px; font-size: 15px; }
+  .unit dt { color: var(--muted); }
+  .unit dd { margin: 0; overflow-wrap: anywhere; }
 
   /* photos */
   .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin-bottom: 12px; }
@@ -149,7 +191,7 @@
 <!-- sign in -->
 <section id="auth" class="wrap" hidden>
   <h1>Call Log</h1>
-  <p class="muted">Sign in to see your service calls.</p>
+  <p class="muted" id="authLead">Sign in to see your service calls.</p>
   <form id="authForm">
     <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
     <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
@@ -164,29 +206,42 @@
     <h1>Call Log</h1>
     <button class="btn quiet" id="signOut">Sign out</button>
   </div>
+  <div class="status" id="status" hidden>
+    <span id="statusText"></span>
+    <button class="btn small" id="retryBtn" hidden>Retry</button>
+    <button class="btn small quiet" id="skipBtn" hidden>Skip this change</button>
+    <button class="btn small primary" id="signInAgain" hidden>Sign in</button>
+  </div>
   <div class="bar">
     <input id="search" type="search" placeholder="Search customer, model, serial, notes…" autocomplete="off" aria-label="Search calls">
     <button class="btn primary" id="newBtn">New call</button>
   </div>
+  <div id="unitBox" hidden></div>
   <p class="count muted" id="count"></p>
   <div id="list"></div>
 </main>
 
 <!-- add / edit -->
 <dialog id="dlg">
-  <form id="callForm">
+  <form id="callForm" novalidate>
     <div class="form-head">
       <h2 id="formTitle">New call</h2>
       <button type="button" class="btn quiet" id="cancelBtn">Cancel</button>
     </div>
     <div class="form-body">
-      <div class="field"><label for="f_call_date">Date</label><input id="f_call_date" name="call_date" type="date" required></div>
-      <div class="field"><label for="f_customer">Customer or site</label><input id="f_customer" name="customer" list="custList" autocomplete="off" required>
+      <div class="field"><label for="f_call_date">Date</label><input id="f_call_date" type="date" required></div>
+      <div class="field"><label for="f_customer">Customer or site</label><input id="f_customer" list="custList" autocomplete="off" required>
         <datalist id="custList"></datalist></div>
-      <div class="field"><label for="f_address">Address</label><input id="f_address" name="address" list="addrList" autocomplete="off" placeholder="Start typing to pick a saved address">
+      <div class="field"><label for="f_address">Address</label><input id="f_address" list="addrList" autocomplete="off" placeholder="Start typing to pick a saved address">
         <datalist id="addrList"></datalist></div>
+
+      <div class="field"><label for="f_equipment">Unit</label>
+        <select id="f_equipment"></select>
+        <p class="hint" id="eqHint">Pick a saved unit at this address to fill in its details.</p></div>
+      <div class="field"><label for="f_unit_tag">Unit name or tag</label>
+        <input id="f_unit_tag" placeholder="RTU-3, kitchen split, walk-in #2…" autocomplete="off"></div>
       <div class="field"><label for="f_equipment_type">Equipment</label>
-        <input id="f_equipment_type" name="equipment_type" list="eqTypes" placeholder="RTU, split system, furnace…">
+        <input id="f_equipment_type" list="eqTypes" placeholder="RTU, split system, furnace…">
         <datalist id="eqTypes">
           <option value="RTU"><option value="Split system"><option value="Heat pump"><option value="Furnace">
           <option value="Boiler"><option value="Mini-split"><option value="Chiller"><option value="Make-up air unit">
@@ -195,19 +250,19 @@
         </datalist>
       </div>
       <div class="row3">
-        <div class="field"><label for="f_make">Make</label><input id="f_make" name="make"></div>
-        <div class="field"><label for="f_model">Model</label><input id="f_model" name="model" autocapitalize="characters"></div>
-        <div class="field"><label for="f_serial">Serial</label><input id="f_serial" name="serial" autocapitalize="characters"></div>
+        <div class="field"><label for="f_make">Make</label><input id="f_make"></div>
+        <div class="field"><label for="f_model">Model</label><input id="f_model" autocapitalize="characters"></div>
+        <div class="field"><label for="f_serial">Serial</label><input id="f_serial" autocapitalize="characters"></div>
       </div>
       <div class="field"><label for="f_filter_size">Filter size</label>
-        <input id="f_filter_size" name="filter_size" placeholder="20x25x2, qty 4" autocapitalize="off"></div>
+        <input id="f_filter_size" placeholder="20x25x2, qty 4" autocapitalize="off"></div>
 
       <fieldset class="group">
         <legend>Unit location</legend>
         <div class="field"><label for="f_unit_location">Where</label>
-          <input id="f_unit_location" name="unit_location" list="unitLocs" placeholder="Roof, 2nd floor, mech room…"></div>
+          <input id="f_unit_location" list="unitLocs" placeholder="Roof, 2nd floor, mech room…"></div>
         <div class="field"><label for="f_unit_location_details">Specifics</label>
-          <textarea id="f_unit_location_details" name="unit_location_details" placeholder="Office 204, above ceiling tile by the east wall"></textarea></div>
+          <textarea id="f_unit_location_details" placeholder="Office 204, above ceiling tile by the east wall"></textarea></div>
       </fieldset>
       <datalist id="unitLocs">
         <option value="Roof"><option value="Mechanical room"><option value="Above ceiling"><option value="Basement">
@@ -217,19 +272,34 @@
       <fieldset class="group">
         <legend>Thermostat location</legend>
         <div class="field"><label for="f_stat_location">Where</label>
-          <input id="f_stat_location" name="stat_location" list="statLocs" placeholder="2nd floor, front office…"></div>
+          <input id="f_stat_location" list="statLocs" placeholder="2nd floor, front office…"></div>
         <div class="field"><label for="f_stat_location_details">Specifics</label>
-          <textarea id="f_stat_location_details" name="stat_location_details" placeholder="Wall by the door, behind the locked cover, key at front desk"></textarea></div>
+          <textarea id="f_stat_location_details" placeholder="Wall by the door, behind the locked cover, key at front desk"></textarea></div>
       </fieldset>
       <datalist id="statLocs">
         <option value="Front office"><option value="Hallway"><option value="Conference room"><option value="Break room">
         <option value="Sales floor"><option value="Remote / BAS"><option value="1st floor"><option value="2nd floor"><option value="3rd floor">
       </datalist>
-      <div class="field"><label for="f_complaint">Complaint</label><textarea id="f_complaint" name="complaint"></textarea></div>
-      <div class="field"><label for="f_findings">What I found</label><textarea id="f_findings" name="findings"></textarea></div>
-      <div class="field"><label for="f_work_done">What I did</label><textarea id="f_work_done" name="work_done"></textarea></div>
-      <div class="field"><label for="f_parts">Parts used</label><textarea id="f_parts" name="parts"></textarea></div>
-      <div class="field"><label for="f_notes">Notes</label><textarea id="f_notes" name="notes"></textarea></div>
+
+      <div class="field"><label for="f_complaint">Complaint</label><textarea id="f_complaint"></textarea></div>
+
+      <fieldset class="group">
+        <legend>Readings</legend>
+        <div class="last" id="lastReadings" hidden></div>
+        <div class="field"><label for="f_refrigerant">Refrigerant</label>
+          <input id="f_refrigerant" list="refList" autocapitalize="characters" placeholder="R-410A" autocomplete="off"></div>
+        <datalist id="refList">
+          <option value="R-410A"><option value="R-454B"><option value="R-32"><option value="R-22"><option value="R-407C">
+          <option value="R-404A"><option value="R-134a"><option value="R-448A"><option value="R-449A"><option value="R-290">
+        </datalist>
+        <div class="nums" id="numsBox"></div>
+        <p class="hint" id="deltaT" style="margin:-6px 0 12px"></p>
+      </fieldset>
+
+      <div class="field"><label for="f_findings">What I found</label><textarea id="f_findings"></textarea></div>
+      <div class="field"><label for="f_work_done">What I did</label><textarea id="f_work_done"></textarea></div>
+      <div class="field"><label for="f_parts">Parts used</label><textarea id="f_parts"></textarea></div>
+      <div class="field"><label for="f_notes">Notes</label><textarea id="f_notes"></textarea></div>
       <div class="field">
         <label>Photos</label>
         <div class="thumbs" id="formThumbs"></div>
@@ -248,71 +318,312 @@
 /* ================== YOUR SUPABASE SETTINGS ==================
    Supabase dashboard > Project Settings > API Keys (and Data API for the URL).
    Use the PUBLISHABLE key (or legacy "anon" key). NEVER the secret / service_role key. */
-  const SUPABASE_URL = "https://cywdtmqkenwfjsmevepn.supabase.co"     // like https://abcd1234.supabase.co
-  const SUPABASE_KEY = "sb_publishable_wGXVzoneuhWmOr34cKJruw_1i0_qxEl";  // starts with sb_publishable_ or eyJ...
+const SUPABASE_URL = "https://cywdtmqkenwfjsmevepn.supabase.co";      // like https://abcd1234.supabase.co
+const SUPABASE_KEY = "sb_publishable_wGXVzoneuhWmOr34cKJruw_1i0_qxEl";  // starts with sb_publishable_ or eyJ...
 /* =========================================================== */
 
-const FIELDS = ["call_date","customer","address","equipment_type","make","model","serial","filter_size",
-  "unit_location","unit_location_details","stat_location","stat_location_details","complaint","findings","work_done","parts","notes"];
-const LABELS = { address:"Address", complaint:"Complaint", findings:"What I found", work_done:"What I did", parts:"Parts used", notes:"Notes" };
+const EQ_FIELDS = ["customer","address","unit_tag","equipment_type","make","model","serial","filter_size","refrigerant",
+  "unit_location","unit_location_details","stat_location","stat_location_details"];
+const TEXT_FIELDS = ["call_date", ...EQ_FIELDS, "complaint","findings","work_done","parts","notes"];
+const NUMS = [
+  { k: "suction_psi",  label: "Suction",     unit: "psig",      short: "Suct" },
+  { k: "head_psi",     label: "Head",        unit: "psig",      short: "Head" },
+  { k: "superheat",    label: "Superheat",   unit: "°F",        short: "SH" },
+  { k: "subcool",      label: "Subcool",     unit: "°F",        short: "SC" },
+  { k: "supply_temp",  label: "Supply air",  unit: "°F",        short: "Supply" },
+  { k: "return_temp",  label: "Return air",  unit: "°F",        short: "Return" },
+  { k: "outdoor_temp", label: "Outdoor",     unit: "°F",        short: "OAT" },
+  { k: "amps",         label: "Amps",        unit: "A",         short: "Amps" },
+  { k: "volts",        label: "Volts",       unit: "V",         short: "Volts" },
+  { k: "static_in",    label: "Total static", unit: "in. w.c.", short: "TSP" },
+];
+const LABELS = { complaint:"Complaint", findings:"What I found", work_done:"What I did", parts:"Parts used", notes:"Notes" };
+const BUCKET = "call-photos";
+const LAST_USER = "callLog.lastUser";
 const $ = id => document.getElementById(id);
+const norm = v => (v == null ? "" : String(v)).trim().replace(/\s+/g, " ").toLowerCase();
 
-if (SUPABASE_URL.startsWith("PASTE")) {
-  document.body.innerHTML = '<div class="wrap"><h1>Call Log</h1><p>Add your Supabase URL and key near the bottom of this file.</p></div>';
-  throw new Error("Supabase not configured");
-}
 if (!window.supabase) {
-  showProblem("The Supabase library didn't load. Check your internet connection, turn off any content blocker for this site, and refresh.");
+  showProblem("The Supabase library didn't load. Connect to the internet once, turn off any content blocker for this site, and refresh.");
   throw new Error("supabase-js missing");
 }
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let rows = [];
-let editingId = null;
-let openId = null;
-let openGroup = null;
+/* ---------- storage on this phone (IndexedDB) ---------- */
+const DB = (() => {
+  let opening;
+  function open() {
+    return opening || (opening = new Promise((res, rej) => {
+      const r = indexedDB.open("call-log", 1);
+      r.onupgradeneeded = () => {
+        r.result.createObjectStore("kv");
+        r.result.createObjectStore("outbox", { keyPath: "key", autoIncrement: true });
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    }));
+  }
+  function run(store, mode, fn) {
+    return open().then(db => new Promise((res, rej) => {
+      const t = db.transaction(store, mode);
+      const req = fn(t.objectStore(store));
+      t.oncomplete = () => res(req && req.result);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error);
+    }));
+  }
+  return {
+    get: k => run("kv", "readonly", s => s.get(k)),
+    set: (k, v) => run("kv", "readwrite", s => s.put(v, k)),
+    ops: () => run("outbox", "readonly", s => s.getAll()),
+    putOp: op => run("outbox", "readwrite", s => s.put(op)),
+    delOp: key => run("outbox", "readwrite", s => s.delete(key)),
+    clear: () => Promise.all([run("kv", "readwrite", s => s.clear()), run("outbox", "readwrite", s => s.clear())]),
+  };
+})();
 
-/* ---------- auth ---------- */
+/* ---------- state ---------- */
+let serverCalls = [], serverEquip = [];   // last copy from Supabase, kept on the phone
+let outbox = [];                          // changes waiting to sync, oldest first
+let allCalls = [], allEquip = [];         // server copy + waiting changes
+let editingId = null, openId = null, openGroup = null, unitFilter = null;
+let syncing = false, syncingKey = null, syncProblem = null, needsSignIn = false, signingOut = false, equipNote = "";
+
+function byNewest(a, b) {
+  return (b.call_date || "").localeCompare(a.call_date || "") || (b.created_at || "").localeCompare(a.created_at || "");
+}
+
+function recompute() {
+  const calls = new Map(serverCalls.map(c => [c.id, c]));
+  const eq = new Map(serverEquip.map(e => [e.id, e]));
+  for (const op of outbox) {
+    if (op.kind === "save") {
+      calls.set(op.call.id, { created_at: op.at, ...(calls.get(op.call.id) || {}), ...op.call, _pending: true });
+      if (op.equip) eq.set(op.equip.id, { ...(eq.get(op.equip.id) || {}), ...op.equip });
+    } else if (op.kind === "delete") calls.delete(op.id);
+  }
+  allCalls = [...calls.values()].sort(byNewest);
+  allEquip = [...eq.values()];
+  buildSuggestions();
+  render();
+  updateStatus();
+}
+
+/* ---------- sign in ---------- */
+function withTimeout(p, ms) {
+  return Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+}
+async function rememberUser(id) {
+  const prev = localStorage.getItem(LAST_USER);
+  if (prev && prev !== id) {               // someone else signed in on this phone: drop the old copy
+    await DB.clear().catch(() => {});
+    serverCalls = []; serverEquip = []; outbox = [];
+  }
+  localStorage.setItem(LAST_USER, id);
+}
 function showView(signedIn) {
   $("boot").hidden = true;
   $("auth").hidden = signedIn;
   $("app").hidden = !signedIn;
-  if (signedIn) { load(); loadSuggestions(); }
+  if (signedIn) { recompute(); sync(); }
 }
-sb.auth.getSession()
-  .then(({ data, error }) => { if (error) showProblem(error.message); else showView(!!data.session); })
-  .catch(err => showProblem("Couldn't reach Supabase: " + err.message + ". Double-check the URL and key."));
+
+(async function boot() {
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("call-log-sw.js").catch(() => {});
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  try {
+    outbox = (await DB.ops()) || [];
+    serverCalls = (await DB.get("calls")) || [];
+    serverEquip = (await DB.get("equipment")) || [];
+  } catch (err) {
+    showProblem("This browser won't let the app save calls on the phone (" + err.message + "). Private browsing can cause this.");
+  }
+  let session = null, err = null;
+  try {
+    const r = await withTimeout(sb.auth.getSession(), 5000);
+    session = r.data && r.data.session; err = r.error;
+  } catch (e) { err = e; }
+  const lastUser = localStorage.getItem(LAST_USER);
+  if (session) { await rememberUser(session.user.id); showView(true); }
+  else if (lastUser && (!navigator.onLine || (err && (isNetMsg(err.message) || err.message === "timeout")))) showView(true);
+  else if (lastUser && (outbox.length || serverCalls.length)) { needsSignIn = true; showView(true); }
+  else showView(false);
+})();
+
 sb.auth.onAuthStateChange((evt, session) => {
-  if (evt === "SIGNED_IN" || evt === "SIGNED_OUT") showView(!!session);
+  if (evt === "SIGNED_IN" && session) {
+    needsSignIn = false;
+    rememberUser(session.user.id).then(() => { if ($("app").hidden) showView(true); else sync(); });
+  }
+  if (evt === "SIGNED_OUT") {
+    if (signingOut) return;
+    if (!navigator.onLine) return;          // no signal: keep working from the phone's copy
+    needsSignIn = true;
+    if (localStorage.getItem(LAST_USER)) updateStatus(); else showView(false);
+  }
 });
 
 $("authForm").addEventListener("submit", async e => {
   e.preventDefault();
   $("authMsg").textContent = "";
+  if (!navigator.onLine) { $("authMsg").textContent = "No signal. Signing in needs internet."; return; }
   const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
   if (error) $("authMsg").textContent = error.message;
 });
-$("signOut").addEventListener("click", () => sb.auth.signOut());
+$("signInAgain").onclick = () => {
+  $("authLead").textContent = "Sign in again to sync. Your unsynced changes are still saved on this phone.";
+  $("boot").hidden = true; $("app").hidden = true; $("auth").hidden = false;
+};
+$("signOut").addEventListener("click", async () => {
+  if (outbox.length && !confirm(`${outbox.length} ${outbox.length === 1 ? "change hasn't" : "changes haven't"} synced yet and will be lost if you sign out. Sign out anyway?`)) return;
+  signingOut = true;
+  const r = await sb.auth.signOut().catch(e => ({ error: e }));
+  if (r && r.error) await sb.auth.signOut({ scope: "local" }).catch(() => {});
+  await DB.clear().catch(() => {});
+  localStorage.removeItem(LAST_USER);
+  serverCalls = []; serverEquip = []; outbox = []; photoCache.clear();
+  unitFilter = null; openId = null; openGroup = null; needsSignIn = false; syncProblem = null;
+  signingOut = false;
+  $("authLead").textContent = "Sign in to see your service calls.";
+  showView(false);
+});
 
-/* ---------- load + search ---------- */
-async function load() {
-  const raw = $("search").value.toLowerCase().replace(/[%_\\]/g, " ").trim();
-  const terms = raw ? raw.split(/\s+/) : [];
-  let q = sb.from("service_calls").select("*")
-    .order("call_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(1000);
-  for (const t of terms) q = q.ilike("search_text", `%${t}%`);   // every word must match somewhere
-  const { data, error } = await q;
-  if (error) { $("count").textContent = "Couldn't load calls: " + error.message; return; }
-  rows = data;
-  render(terms.length > 0);
+/* ---------- sync ---------- */
+function chk(res) {
+  if (res && res.error) throw new Error(res.error.message || String(res.error));
+  return res;
+}
+async function fetchAll(table) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await sb.from(table).select("*").order("id").range(from, from + 999);
+    if (error) throw new Error(error.message);
+    out.push(...data);
+    if (data.length < 1000) return out;
+  }
+}
+async function refresh() {
+  const calls = await fetchAll("service_calls");
+  serverCalls = calls;
+  await DB.set("calls", calls).catch(() => {});
+  try {
+    serverEquip = await fetchAll("equipment");
+    equipNote = "";
+    await DB.set("equipment", serverEquip).catch(() => {});
+  } catch (err) {
+    if (isNetMsg(err.message)) throw err;
+    equipNote = "Unit records aren't set up yet. Run the SQL update in Supabase.";
+  }
+  recompute();
+}
+
+async function runOp(op, uid) {
+  if (op.kind === "delete") {
+    const ph = chk(await sb.from("call_photos").select("path").eq("call_id", op.id));
+    if (ph.data.length) chk(await sb.storage.from(BUCKET).remove(ph.data.map(p => p.path)));
+    chk(await sb.from("service_calls").delete().eq("id", op.id));
+    photoCache.delete(op.id);
+    return;
+  }
+  if (op.equip) chk(await sb.from("equipment").upsert(op.equip));
+  chk(await sb.from("service_calls").upsert(op.call));
+  while (op.removed.length) {
+    const p = op.removed[0];
+    chk(await sb.storage.from(BUCKET).remove([p.path]));
+    chk(await sb.from("call_photos").delete().eq("id", p.id));
+    op.removed.shift();
+    await DB.putOp(op);
+  }
+  while (op.photos.length) {
+    const p = op.photos[0];
+    const path = `${uid}/${op.call.id}/${p.pid}.jpg`;
+    const up = await sb.storage.from(BUCKET).upload(path, p.blob, { contentType: "image/jpeg" });
+    if (up.error && !/exist|duplicate/i.test(up.error.message || "")) throw new Error(up.error.message);
+    const have = chk(await sb.from("call_photos").select("id").eq("path", path).limit(1));
+    if (!have.data.length) chk(await sb.from("call_photos").insert({ call_id: op.call.id, path }));
+    op.photos.shift();
+    await DB.putOp(op);
+    dropBlobUrl(p.pid);
+  }
+  photoCache.delete(op.call.id);
+}
+
+async function sync() {
+  if (syncing || !navigator.onLine || $("app").hidden) { updateStatus(); return; }
+  syncing = true; updateStatus();
+  try {
+    const { data } = await withTimeout(sb.auth.getSession(), 8000);
+    if (!data.session) {
+      if (localStorage.getItem(LAST_USER)) needsSignIn = true; else showView(false);
+      return;
+    }
+    needsSignIn = false;
+    while (outbox.length) {
+      const op = outbox[0];
+      syncingKey = op.key;
+      updateStatus();
+      await runOp(op, data.session.user.id);
+      await DB.delOp(op.key);
+      outbox.shift();
+    }
+    syncingKey = null;
+    syncProblem = null;
+    await refresh();
+  } catch (err) {
+    const m = err.message || String(err);
+    syncProblem = (isNetMsg(m) || m === "timeout") ? null : m;
+  } finally {
+    syncing = false; syncingKey = null;
+    recompute();
+  }
+}
+window.addEventListener("online", sync);
+window.addEventListener("offline", updateStatus);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) sync(); });
+
+function updateStatus() {
+  const n = outbox.length, s = n === 1 ? "change" : "changes";
+  let text = "", bad = false, retry = false, skip = false, signIn = false;
+  if (needsSignIn) { text = n ? `Signed out. Sign in to sync ${n} ${s} saved on this phone.` : "Signed out. Sign in to get your latest calls."; signIn = true; }
+  else if (syncProblem) { text = `Couldn't sync ${n} ${s}: ${syncProblem}`; bad = true; retry = true; skip = n > 0; }
+  else if (!navigator.onLine) text = n ? `No signal. ${n} ${s} saved on this phone, will sync when you're back online.` : "No signal. Showing calls saved on this phone.";
+  else if (syncing && n) text = `Syncing ${n} ${s}…`;
+  else if (n) { text = `${n} ${s} waiting to sync.`; retry = true; }
+  $("status").hidden = !text;
+  $("status").classList.toggle("bad", bad);
+  $("statusText").textContent = text;
+  $("retryBtn").hidden = !retry || syncing;
+  $("skipBtn").hidden = !skip || syncing;
+  $("signInAgain").hidden = !signIn;
+}
+$("retryBtn").onclick = () => { syncProblem = null; sync(); };
+$("skipBtn").onclick = async () => {
+  const op = outbox[0];
+  if (!op || !confirm("Throw away the change that won't sync? It will be lost.")) return;
+  await DB.delOp(op.key);
+  outbox.shift();
+  syncProblem = null;
+  recompute(); sync();
+};
+
+/* ---------- search + render ---------- */
+function haystack(r) {
+  return [...TEXT_FIELDS, ...NUMS.map(n => n.k)].map(k => r[k]).filter(v => v != null && v !== "").join(" ").toLowerCase();
+}
+function searchTerms() {
+  const raw = $("search").value.toLowerCase().trim();
+  return raw ? raw.split(/\s+/) : [];
+}
+function matches(r, terms) {
+  if (!terms.length) return true;
+  const h = haystack(r);
+  return terms.every(t => h.includes(t));
 }
 let timer;
-$("search").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(load, 300); });
+$("search").addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(render, 150); });
 
-/* ---------- render ---------- */
 function fmtDate(s) {
+  if (!s) return "";
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
@@ -322,14 +633,37 @@ function el(tag, cls, text) {
   if (text != null) n.textContent = text;
   return n;
 }
+function has(v) { return v != null && v !== ""; }
+function fmtReading(n, v) { return `${n.short} ${Number(v)}${n.unit === "°F" ? "°F" : " " + n.unit}`; }
+function deltaT(r) {
+  return has(r.supply_temp) && has(r.return_temp) ? Math.round((Number(r.return_temp) - Number(r.supply_temp)) * 10) / 10 : null;
+}
+function readingsText(r, only) {
+  const parts = NUMS.filter(n => (!only || only.includes(n.k)) && has(r[n.k])).map(n => fmtReading(n, r[n.k]));
+  const dt = deltaT(r);
+  if (dt != null && (!only || only.includes("dt"))) parts.push(`ΔT ${dt}°F`);
+  return parts.join(", ");
+}
+function hasReadings(r) { return NUMS.some(n => has(r[n.k])); }
+function groupKey(r) { return norm(r.address || r.customer); }
+function equipTitle(e) {
+  return e.unit_tag || [e.equipment_type, e.make].filter(Boolean).join(", ") || e.model || "Unit";
+}
+function equipLabel(e) {
+  return [e.unit_tag, e.equipment_type, [e.make, e.model].filter(Boolean).join(" "), e.serial && "SN " + e.serial]
+    .filter(Boolean).join(", ");
+}
 
-function groupKey(r) { return (r.address || r.customer || "").trim().replace(/\s+/g, " ").toLowerCase(); }
-
-function render(searching) {
+function render() {
+  if ($("app").hidden) return;
+  const terms = searchTerms();
+  const searching = terms.length > 0;
   const list = $("list");
   list.replaceChildren();
+  if (unitFilter) return renderUnit(terms);
+  $("unitBox").hidden = true;
 
-  // group calls by address (customer name if no address), groups sorted A to Z
+  const rows = allCalls.filter(r => matches(r, terms));
   const groups = new Map();
   for (const r of rows) {
     const k = groupKey(r);
@@ -337,101 +671,143 @@ function render(searching) {
     groups.get(k).push(r);
   }
   const sorted = [...groups.entries()].sort((a, b) =>
-    (a[1][0].address || a[1][0].customer).localeCompare(b[1][0].address || b[1][0].customer, undefined, { numeric: true, sensitivity: "base" }));
+    (a[1][0].address || a[1][0].customer || "").localeCompare(b[1][0].address || b[1][0].customer || "", undefined, { numeric: true, sensitivity: "base" }));
 
   const n = rows.length, g = sorted.length;
-  $("count").textContent = n
+  $("count").textContent = (n
     ? `${n} ${searching ? (n === 1 ? "match" : "matches") : (n === 1 ? "call" : "calls")} at ${g} ${g === 1 ? "address" : "addresses"}`
-    : "";
+    : "") + (equipNote ? (n ? ". " : "") + equipNote : "");
 
   if (!n) {
     const box = el("div", "empty");
     box.append(el("p", "muted", searching ? "No calls match that search. Try a shorter word or part of a serial." : "No calls logged yet."));
-    if (!searching) { const b = el("button", "btn primary", "Log your first call"); b.onclick = openNew; box.append(b); }
+    if (!searching) { const b = el("button", "btn primary", "Log your first call"); b.onclick = () => openNew(); box.append(b); }
     list.append(box);
     return;
   }
 
-  // a search that narrows to one address opens it automatically
   const autoOpen = searching && g === 1 ? sorted[0][0] : null;
-
   for (const [key, calls] of sorted) {
-    const first = calls[0];                       // newest call at this address
+    const first = calls[0];
     const isOpen = openGroup === key || autoOpen === key;
     const grp = el("section", "grp" + (isOpen ? " open" : ""));
-
     const tab = document.createElement("button");
     tab.className = "tab";
     tab.setAttribute("aria-expanded", isOpen);
     const customers = [...new Set(calls.map(c => c.customer).filter(Boolean))].join(", ");
-    tab.append(
-      el("span", "addr", first.address || first.customer),
-      el("span", "who", first.address ? customers : "No address"),
-    );
+    tab.append(el("span", "addr", first.address || first.customer), el("span", "who", first.address ? customers : "No address"));
+    if (calls.some(c => c._pending)) { const d = el("span", "dot"); d.title = "Waiting to sync"; tab.append(d); }
     const meta = el("span", "meta", fmtDate(first.call_date));
     meta.append(el("span", "badge", String(calls.length)));
     tab.append(meta);
-    tab.onclick = () => { openGroup = isOpen ? null : key; openId = null; render(searching); };
+    tab.onclick = () => { openGroup = isOpen ? null : key; openId = null; render(); };
     grp.append(tab);
-
-    if (isOpen) {
-      const box = el("div", "calls");
-      for (const r of calls) {
-        const row = document.createElement("button");
-        row.className = "row";
-        row.setAttribute("aria-expanded", r.id === openId);
-        const sum = [r.equipment_type, r.complaint || r.findings || r.notes].filter(Boolean).join(": ");
-        row.append(el("span", "d", fmtDate(r.call_date)), el("span", "s", sum || r.customer));
-        row.onclick = () => { openGroup = key; openId = openId === r.id ? null : r.id; render(searching); };
-        box.append(row);
-        if (r.id === openId) box.append(details(r));
-      }
-      grp.append(box);
-    }
+    if (isOpen) grp.append(callRows(calls, key, r => [r.unit_tag || r.equipment_type, r.complaint || r.findings || r.notes].filter(Boolean).join(": ")));
     list.append(grp);
   }
 }
 
+function callRows(calls, key, summary) {
+  const box = el("div", "calls");
+  for (const r of calls) {
+    const row = document.createElement("button");
+    row.className = "row";
+    row.setAttribute("aria-expanded", r.id === openId);
+    row.append(el("span", "d", fmtDate(r.call_date)), el("span", "s", summary(r) || r.customer));
+    if (r._pending) { const d = el("span", "dot"); d.title = "Waiting to sync"; row.append(d); }
+    row.onclick = () => { if (key) openGroup = key; openId = openId === r.id ? null : r.id; render(); };
+    box.append(row);
+    if (r.id === openId) box.append(details(r));
+  }
+  return box;
+}
+
+function renderUnit(terms) {
+  const e = allEquip.find(x => x.id === unitFilter) || {};
+  const all = allCalls.filter(c => c.equipment_id === unitFilter);
+  const calls = all.filter(r => matches(r, terms));
+  const latest = all[0] || {};
+  const info = { ...latest, ...e };
+
+  const box = $("unitBox");
+  box.hidden = false;
+  box.replaceChildren();
+  const card = el("div", "unit");
+  card.append(el("h2", null, equipTitle(info)));
+  card.append(el("p", "where", [info.customer, info.address].filter(Boolean).join(", ")));
+  const dl = document.createElement("dl");
+  const add = (label, val) => { if (has(val)) dl.append(el("dt", null, label), el("dd", null, val)); };
+  add("Equipment", info.equipment_type);
+  add("Make / model", [info.make, info.model].filter(Boolean).join(" / "));
+  add("Serial", info.serial);
+  add("Refrigerant", info.refrigerant);
+  add("Filter", info.filter_size);
+  add("Location", [info.unit_location, info.unit_location_details].filter(Boolean).join(", "));
+  card.append(dl);
+  const acts = el("div", "actions");
+  const nv = el("button", "btn primary small", "New visit");
+  nv.onclick = () => openNew({ ...latest, ...e, equipment_id: unitFilter });
+  const back = el("button", "btn small", "Back to all calls");
+  back.onclick = () => { unitFilter = null; openId = null; render(); window.scrollTo(0, 0); };
+  acts.append(nv, back);
+  card.append(acts);
+  box.append(card);
+
+  $("count").textContent = `${calls.length} ${calls.length === 1 ? "visit" : "visits"} to this unit`;
+  if (!calls.length) { $("list").append(el("p", "empty muted", "No visits match that search.")); return; }
+  $("list").append(callRows(calls, null, r =>
+    [readingsText(r, ["superheat", "subcool", "dt"]), r.complaint || r.findings || r.notes].filter(Boolean).join(". ")));
+}
+
 function details(r) {
   const det = el("div", "detail");
+  if (r._pending) det.append(el("p", "pending-note", "Saved on this phone. Syncs when you have signal."));
   const dl = document.createElement("dl");
-  const add = (label, val) => { if (val) dl.append(el("dt", null, label), el("dd", null, val)); };
+  const add = (label, val) => { if (has(val)) dl.append(el("dt", null, label), el("dd", null, val)); };
   add("Customer", r.customer);
+  add("Unit", r.unit_tag);
   add("Equipment", r.equipment_type);
   add("Make / model", [r.make, r.model].filter(Boolean).join(" / "));
   add("Serial", r.serial);
   add("Filter size", r.filter_size);
   add("Unit location", [r.unit_location, r.unit_location_details].filter(Boolean).join("\n"));
   add("Thermostat location", [r.stat_location, r.stat_location_details].filter(Boolean).join("\n"));
-  for (const k of ["complaint","findings","work_done","parts","notes"]) add(LABELS[k], r[k]);
+  add("Complaint", r.complaint);
+  add("Readings", [r.refrigerant, readingsText(r)].filter(Boolean).join(": "));
+  for (const k of ["findings","work_done","parts","notes"]) add(LABELS[k], r[k]);
   det.append(dl);
+
   const acts = el("div", "actions");
   const edit = el("button", "btn", "Edit");
   edit.onclick = () => openEdit(r);
+  const again = el("button", "btn", "New visit, same unit");
+  again.onclick = () => openNew(r);
+  acts.append(edit, again);
+  if (r.equipment_id) {
+    const n = allCalls.filter(c => c.equipment_id === r.equipment_id).length;
+    const hist = el("button", "btn", `Unit history (${n})`);
+    hist.onclick = () => { unitFilter = r.equipment_id; openId = null; $("search").value = ""; render(); window.scrollTo(0, 0); };
+    acts.append(hist);
+  }
   const del = el("button", "btn danger", "Delete");
   del.onclick = () => remove(r);
-  acts.append(edit, del);
+  acts.append(del);
+
   const thumbs = el("div", "thumbs");
   det.append(thumbs, acts);
-  getPhotos(r.id).then(list => {
-    if (!list.length) return;
-    thumbs.before(el("p", "photo-label", list.length === 1 ? "1 photo" : `${list.length} photos`));
+  photosFor(r).then(list => {
+    if (list.length) thumbs.before(el("p", "photo-label", list.length === 1 ? "1 photo" : `${list.length} photos`));
+    else if (!navigator.onLine && serverCalls.some(c => c.id === r.id)) thumbs.before(el("p", "photo-label", "Saved photos show when you're back online."));
     for (const ph of list) thumbs.append(thumb(ph.url));
   });
   return det;
 }
 
-/* ---------- saved address + customer suggestions ---------- */
-const norm = v => (v || "").trim().replace(/\s+/g, " ").toLowerCase();
-let addrInfo = new Map();   // address -> { address, customer } (newest spelling wins)
-let custInfo = new Map();   // customer -> { customer, addresses: Set }
-
-async function loadSuggestions() {
-  const { data, error } = await sb.from("service_calls")
-    .select("address, customer").order("call_date", { ascending: false }).limit(5000);
-  if (error) return;                       // suggestions are optional; the form still works
+/* ---------- address + customer suggestions ---------- */
+let addrInfo = new Map(), custInfo = new Map();
+function buildSuggestions() {
   addrInfo = new Map(); custInfo = new Map();
-  for (const r of data) {
+  for (const r of allCalls) {
     const a = norm(r.address), c = norm(r.customer);
     if (a && !addrInfo.has(a)) addrInfo.set(a, { address: r.address.trim(), customer: r.customer });
     if (c) {
@@ -444,41 +820,108 @@ async function loadSuggestions() {
   fill("addrList", [...addrInfo.values()].map(x => x.address));
   fill("custList", [...custInfo.values()].map(x => x.customer));
 }
-
-// picking a saved address fills in the customer (if blank), and vice versa
 $("f_address").addEventListener("change", () => {
   const hit = addrInfo.get(norm($("f_address").value));
-  if (!hit) return;
-  $("f_address").value = hit.address;       // snap to the saved spelling so visits group together
-  if (!$("f_customer").value.trim()) $("f_customer").value = hit.customer;
+  if (hit) {
+    $("f_address").value = hit.address;
+    if (!$("f_customer").value.trim()) $("f_customer").value = hit.customer;
+  }
+  fillEquipOptions($("f_equipment").value);
 });
 $("f_customer").addEventListener("change", () => {
   const hit = custInfo.get(norm($("f_customer").value));
-  if (!hit) return;
-  $("f_customer").value = hit.customer;
-  if (!$("f_address").value.trim() && hit.addresses.size === 1) $("f_address").value = [...hit.addresses][0];
+  if (hit) {
+    $("f_customer").value = hit.customer;
+    if (!$("f_address").value.trim() && hit.addresses.size === 1) $("f_address").value = [...hit.addresses][0];
+  }
+  fillEquipOptions($("f_equipment").value);
 });
 
-/* ---------- photos ---------- */
-const BUCKET = "call-photos";
-const photoCache = new Map();   // call id -> { at, list: [{id, path, url}] }
-let pendingFiles = [];          // new photos picked in the form: {file, preview}
-let keptPhotos = [];            // saved photos still attached while editing
-let removedPhotos = [];         // saved photos to delete when the form is saved
+/* ---------- unit picker + readings in the form ---------- */
+function fillEquipOptions(selectedId) {
+  const a = norm($("f_address").value), c = norm($("f_customer").value);
+  const list = allEquip.filter(e => a ? norm(e.address) === a : (c ? norm(e.customer) === c : false));
+  if (selectedId && !list.some(e => e.id === selectedId)) {
+    const s = allEquip.find(e => e.id === selectedId);
+    if (s) list.unshift(s);
+  }
+  list.sort((x, y) => equipLabel(x).localeCompare(equipLabel(y), undefined, { numeric: true, sensitivity: "base" }));
+  const opt = (v, t) => { const o = document.createElement("option"); o.value = v; o.textContent = t; return o; };
+  $("f_equipment").replaceChildren(opt("", list.length ? "New unit (not saved yet)" : "New unit (none saved here yet)"),
+    ...list.map(e => opt(e.id, equipLabel(e))));
+  $("f_equipment").value = selectedId && list.some(e => e.id === selectedId) ? selectedId : "";
+  $("eqHint").hidden = !list.length || !!$("f_equipment").value;
+}
+$("f_equipment").addEventListener("change", () => {
+  const e = allEquip.find(x => x.id === $("f_equipment").value);
+  if (e) {
+    for (const k of EQ_FIELDS) {
+      if ((k === "customer" || k === "address") && $("f_" + k).value.trim()) continue;
+      if (has(e[k])) $("f_" + k).value = e[k];
+    }
+  }
+  $("eqHint").hidden = true;
+  showLastReadings();
+});
+function showLastReadings() {
+  const eqId = $("f_equipment").value;
+  const box = $("lastReadings");
+  const prev = eqId && allCalls.find(c => c.equipment_id === eqId && c.id !== editingId && hasReadings(c));
+  box.hidden = !prev;
+  if (!prev) return;
+  box.replaceChildren(el("b", null, `Last readings, ${fmtDate(prev.call_date)}: `), document.createTextNode(readingsText(prev)));
+}
+for (const n of NUMS) {
+  const f = el("div", "field");
+  const lab = el("label", null, n.label + " ");
+  lab.htmlFor = "f_" + n.k;
+  lab.append(el("span", "u", n.unit));
+  const inp = document.createElement("input");
+  inp.id = "f_" + n.k; inp.inputMode = "decimal"; inp.autocomplete = "off";
+  f.append(lab, inp);
+  $("numsBox").append(f);
+}
+function showDeltaT() {
+  const dt = deltaT({ supply_temp: numVal("supply_temp"), return_temp: numVal("return_temp") });
+  $("deltaT").textContent = dt != null && !isNaN(dt) ? `Temperature split (ΔT): ${dt}°F` : "";
+}
+function numVal(k) { const v = $("f_" + k).value.trim().replace(",", "."); return v === "" ? null : Number(v); }
+$("f_supply_temp").addEventListener("input", showDeltaT);
+$("f_return_temp").addEventListener("input", showDeltaT);
 
+/* ---------- photos ---------- */
+const photoCache = new Map();   // call id -> { at, list: [{id, path, url}] }
+const blobUrls = new Map();     // queued photo id -> object URL
+let pendingFiles = [];          // photos picked in this form: {file, preview}
+let keptPhotos = [];            // photos already attached: {server:true,id,path,url} or {queued:true,opKey,pid,url}
+let removedPhotos = [];
+
+function blobUrl(p) { if (!blobUrls.has(p.pid)) blobUrls.set(p.pid, URL.createObjectURL(p.blob)); return blobUrls.get(p.pid); }
+function dropBlobUrl(pid) { if (blobUrls.has(pid)) { URL.revokeObjectURL(blobUrls.get(pid)); blobUrls.delete(pid); } }
+function queuedPhotos(callId) {
+  const out = [];
+  for (const o of outbox) if (o.kind === "save" && o.call.id === callId)
+    for (const p of o.photos) out.push({ queued: true, opKey: o.key, pid: p.pid, url: blobUrl(p) });
+  return out;
+}
 async function getPhotos(callId) {
   const hit = photoCache.get(callId);
-  if (hit && Date.now() - hit.at < 45 * 60 * 1000) return hit.list;   // signed links last 1 hour
+  if (hit && Date.now() - hit.at < 45 * 60 * 1000) return hit.list;
   const { data, error } = await sb.from("call_photos").select("id, path").eq("call_id", callId).order("created_at");
   if (error) return [];
   let list = [];
   if (data.length) {
     const s2 = await sb.storage.from(BUCKET).createSignedUrls(data.map(p => p.path), 3600);
     if (s2.error) return [];
-    list = data.map((p, i) => ({ ...p, url: s2.data[i] && s2.data[i].signedUrl })).filter(p => p.url);
+    list = data.map((p, i) => ({ ...p, server: true, url: s2.data[i] && s2.data[i].signedUrl })).filter(p => p.url);
   }
   photoCache.set(callId, { at: Date.now(), list });
   return list;
+}
+async function photosFor(r) {
+  let server = [];
+  if (navigator.onLine && serverCalls.some(c => c.id === r.id)) server = await getPhotos(r.id).catch(() => []);
+  return [...server, ...queuedPhotos(r.id)];
 }
 
 function thumb(src, onRemove) {
@@ -496,16 +939,18 @@ function thumb(src, onRemove) {
   }
   return w;
 }
-
 function openViewer(src) { $("viewerImg").src = src; $("viewer").showModal(); }
 $("viewer").onclick = () => $("viewer").close();
 
 function renderFormPhotos() {
   const box = $("formThumbs");
   box.replaceChildren();
-  for (const p of keptPhotos) box.append(thumb(p.url, () => {
-    keptPhotos = keptPhotos.filter(x => x !== p); removedPhotos.push(p); renderFormPhotos();
-  }));
+  for (const p of keptPhotos) {
+    const locked = p.queued && p.opKey === syncingKey;     // uploading right now
+    box.append(thumb(p.url, locked ? null : () => {
+      keptPhotos = keptPhotos.filter(x => x !== p); removedPhotos.push(p); renderFormPhotos();
+    }));
+  }
   for (const p of pendingFiles) box.append(thumb(p.preview, () => {
     URL.revokeObjectURL(p.preview); pendingFiles = pendingFiles.filter(x => x !== p); renderFormPhotos();
   }));
@@ -541,107 +986,153 @@ function shrink(file, max = 1600, quality = 0.8) {
   });
 }
 
-async function savePhotos(callId) {
-  const problems = [];
-  for (const p of [...removedPhotos]) {
-    const { error } = await sb.storage.from(BUCKET).remove([p.path]);
-    if (error) { problems.push("couldn't remove a photo: " + error.message); continue; }
-    await sb.from("call_photos").delete().eq("id", p.id);
-    removedPhotos = removedPhotos.filter(x => x !== p);
-  }
-  const { data: { session } } = await sb.auth.getSession();
-  const total = pendingFiles.length;
-  let n = 0;
-  for (const p of [...pendingFiles]) {
-    n++;
-    $("saveBtn").textContent = `Uploading photo ${n} of ${total}…`;
-    try {
-      const blob = await shrink(p.file);
-      const path = `${session.user.id}/${callId}/${crypto.randomUUID()}.jpg`;
-      const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: "image/jpeg" });
-      if (up.error) throw up.error;
-      const ins = await sb.from("call_photos").insert({ call_id: callId, path });
-      if (ins.error) { await sb.storage.from(BUCKET).remove([path]); throw ins.error; }
-      URL.revokeObjectURL(p.preview);
-      pendingFiles = pendingFiles.filter(x => x !== p);
-    } catch (err) {
-      problems.push(err.message);
-    }
-  }
-  photoCache.delete(callId);
-  return problems;
-}
-
 /* ---------- add / edit / delete ---------- */
 function today() {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0, 10);
 }
-function openNew() {
+function openForm(title, saveLabel) {
+  $("formTitle").textContent = title;
+  $("saveBtn").textContent = saveLabel;
+  $("saveBtn").disabled = false;
+  $("formMsg").textContent = "";
+  showDeltaT();
+  $("dlg").showModal();
+}
+// from: a past call or unit to copy the unit details from (quick fill)
+function openNew(from) {
   editingId = null;
   $("callForm").reset();
   $("f_call_date").value = today();
-  $("formTitle").textContent = "New call";
-  $("saveBtn").textContent = "Save call";
-  $("formMsg").textContent = "";
+  if (from) for (const k of EQ_FIELDS) $("f_" + k).value = from[k] ?? "";
+  fillEquipOptions(from && from.equipment_id);
+  showLastReadings();
   resetFormPhotos();
-  $("dlg").showModal();
-  $("f_customer").focus();
+  openForm(from ? "New visit" : "New call", "Save call");
+  $(from ? "f_complaint" : "f_customer").focus();
 }
 function openEdit(r) {
   editingId = r.id;
-  for (const k of FIELDS) $("f_" + k).value = r[k] ?? "";
-  $("formTitle").textContent = "Edit call";
-  $("saveBtn").textContent = "Save changes";
-  $("formMsg").textContent = "";
+  $("callForm").reset();
+  for (const k of TEXT_FIELDS) $("f_" + k).value = r[k] ?? "";
+  for (const n of NUMS) $("f_" + n.k).value = has(r[n.k]) ? Number(r[n.k]) : "";
+  fillEquipOptions(r.equipment_id);
+  showLastReadings();
   resetFormPhotos();
-  $("dlg").showModal();
-  getPhotos(r.id).then(list => { if (editingId === r.id) { keptPhotos = [...list]; renderFormPhotos(); } });
+  keptPhotos = queuedPhotos(r.id);
+  renderFormPhotos();
+  openForm("Edit call", "Save changes");
+  photosFor({ id: r.id }).then(list => {
+    if (editingId !== r.id) return;
+    keptPhotos = [...list.filter(p => p.server), ...keptPhotos.filter(p => p.queued)];
+    renderFormPhotos();
+  });
 }
-$("newBtn").onclick = openNew;
+$("newBtn").onclick = () => openNew();
 $("cancelBtn").onclick = () => { resetFormPhotos(); $("dlg").close(); };
+
+async function enqueue(op) {
+  op.at = new Date().toISOString();
+  if (op.kind === "save") {
+    const prev = outbox.find(o => o.kind === "save" && o.call.id === op.call.id && o.key !== syncingKey);
+    if (prev) {               // still waiting: fold this edit into it
+      prev.call = op.call;
+      prev.equip = op.equip || prev.equip;
+      prev.photos.push(...op.photos);
+      prev.removed.push(...op.removed);
+      await DB.putOp(prev);
+      return;
+    }
+  }
+  op.key = await DB.putOp(op);
+  outbox.push(op);
+}
 
 $("callForm").addEventListener("submit", async e => {
   e.preventDefault();
+  const msg = $("formMsg");
+  msg.textContent = "";
   const rec = {};
-  for (const k of FIELDS) { const v = $("f_" + k).value.trim(); rec[k] = v === "" ? null : v; }
+  for (const k of TEXT_FIELDS) { const v = $("f_" + k).value.trim(); rec[k] = v === "" ? null : v; }
+  if (!rec.call_date) { msg.textContent = "Pick a date."; return; }
+  if (!rec.customer) { msg.textContent = "Add the customer or site."; $("f_customer").focus(); return; }
+  for (const n of NUMS) {
+    const v = numVal(n.k);
+    if (v != null && !isFinite(v)) { msg.textContent = `${n.label} needs to be a number.`; $("f_" + n.k).focus(); return; }
+    rec[n.k] = v;
+  }
+
+  // which unit is this?
+  const id = editingId || crypto.randomUUID();
+  const describesUnit = ["unit_tag", "equipment_type", "make", "model", "serial"].some(k => rec[k]);
+  let eqId = $("f_equipment").value || null;
+  if (!eqId && rec.serial) { const m = allEquip.find(x => norm(x.serial) === norm(rec.serial)); if (m) eqId = m.id; }
+  if (!eqId && describesUnit) eqId = crypto.randomUUID();
+  rec.equipment_id = eqId;
+  let equip = null;
+  if (eqId) {
+    const exists = allEquip.some(x => x.id === eqId);
+    const newer = allCalls.some(c => c.equipment_id === eqId && c.id !== id && (c.call_date || "") > rec.call_date);
+    if (!exists || !newer) {            // only the newest visit updates the unit's details
+      equip = { id: eqId, updated_at: new Date().toISOString() };
+      for (const k of EQ_FIELDS) equip[k] = rec[k];
+    }
+  }
+
   $("saveBtn").disabled = true;
-  const res = editingId
-    ? await sb.from("service_calls").update(rec).eq("id", editingId).select().single()
-    : await sb.from("service_calls").insert(rec).select().single();
-  if (res.error) {
-    $("saveBtn").disabled = false;
-    $("formMsg").textContent = "Not saved: " + res.error.message;
+  const photos = [];
+  try {
+    let i = 0;
+    for (const p of pendingFiles) {
+      i++;
+      $("saveBtn").textContent = `Preparing photo ${i} of ${pendingFiles.length}…`;
+      photos.push({ pid: crypto.randomUUID(), blob: await shrink(p.file) });
+    }
+  } catch (err) {
+    $("saveBtn").disabled = false; $("saveBtn").textContent = editingId ? "Save changes" : "Save call";
+    msg.textContent = "Not saved: " + err.message + ". Remove that photo and try again.";
     return;
   }
-  const label = $("saveBtn").textContent;
-  editingId = res.data.id;                       // a retry updates this call instead of adding a copy
-  const problems = await savePhotos(res.data.id);
-  $("saveBtn").disabled = false;
-  $("saveBtn").textContent = label;
-  openId = res.data.id;
-  openGroup = groupKey(res.data);
-  load();
-  loadSuggestions();
-  if (problems.length) {
-    $("formMsg").textContent = `Call saved, but ${problems.length === 1 ? "a photo" : problems.length + " photos"} didn't upload (${problems[0]}). Tap Save again to retry.`;
+
+  // photos removed while editing
+  const removed = [];
+  for (const p of removedPhotos) {
+    if (p.server) removed.push({ id: p.id, path: p.path });
+    else if (p.queued) {
+      const o = outbox.find(x => x.key === p.opKey);
+      if (o && o.key !== syncingKey) { o.photos = o.photos.filter(x => x.pid !== p.pid); await DB.putOp(o); dropBlobUrl(p.pid); }
+    }
+  }
+
+  try {
+    await enqueue({ kind: "save", call: { id, ...rec }, equip, photos, removed });
+  } catch (err) {
+    $("saveBtn").disabled = false; $("saveBtn").textContent = editingId ? "Save changes" : "Save call";
+    msg.textContent = "Not saved on this phone: " + err.message;
     return;
   }
   resetFormPhotos();
   $("dlg").close();
+  openId = id;
+  openGroup = groupKey(rec);
+  if (unitFilter && eqId !== unitFilter) unitFilter = null;
+  recompute();
+  sync();
 });
 
 async function remove(r) {
   if (!confirm(`Delete the ${fmtDate(r.call_date)} call at ${r.customer}? This can't be undone.`)) return;
-  const ph = await sb.from("call_photos").select("path").eq("call_id", r.id);
-  if (ph.data && ph.data.length) await sb.storage.from(BUCKET).remove(ph.data.map(p => p.path));
-  photoCache.delete(r.id);
-  const { error } = await sb.from("service_calls").delete().eq("id", r.id);
-  if (error) { alert("Not deleted: " + error.message); return; }
+  for (const o of outbox.filter(o => o.kind === "save" && o.call.id === r.id && o.key !== syncingKey)) {
+    await DB.delOp(o.key);
+    for (const p of o.photos) dropBlobUrl(p.pid);
+    outbox = outbox.filter(x => x !== o);
+  }
+  const onServer = serverCalls.some(c => c.id === r.id) || outbox.some(o => o.kind === "save" && o.call.id === r.id);
+  if (onServer) await enqueue({ kind: "delete", id: r.id });
   openId = null;
-  load();
-  loadSuggestions();
+  recompute();
+  sync();
 }
 </script>
 </body>
