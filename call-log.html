@@ -26,7 +26,8 @@
     --bg: #151c25;       /* galvanized slate */
     --panel: #1e2834;
     --panel-2: #26323f;
-    --line: #34434f;
+    --line: #869397;      /* Cowboys silver: borders */
+    --cowboys-blue: #003594; /* Cowboys blue: accent borders */
     --text: #e7edf2;
     --muted: #93a3b1;
     --low: #4ba3ff;      /* low-side blue: primary actions */
@@ -96,12 +97,12 @@
   }
   .tab { min-height: 50px; padding: 8px 10px; }
   .tab:focus-visible, .row:focus-visible { outline: 2px solid var(--low); outline-offset: -2px; }
-  .grp.open > .tab { border-left-color: var(--low); background: var(--panel); }
+  .grp.open > .tab { border-left-color: var(--cowboys-blue); background: var(--panel); }
   .addr { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; min-width: 0; }
   .who { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; font-size: 15px; }
   .meta { color: var(--muted); font-size: 14px; white-space: nowrap; flex: none; }
   .badge { display: inline-block; min-width: 22px; text-align: center; padding: 1px 7px; margin-left: 6px; border-radius: 99px; background: var(--panel-2); color: var(--text); font-size: 13px; }
-  .calls { background: var(--panel); border-left: 3px solid var(--low); padding-bottom: 6px; }
+  .calls { background: var(--panel); border-left: 3px solid var(--cowboys-blue); padding-bottom: 6px; }
   .row { min-height: 44px; padding: 6px 10px 6px 18px; border-top: 1px solid var(--line); font-size: 15px; }
   .row .d { color: var(--muted); white-space: nowrap; flex: none; width: 92px; }
   .row .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 0; min-width: 0; }
@@ -247,8 +248,8 @@
 /* ================== YOUR SUPABASE SETTINGS ==================
    Supabase dashboard > Project Settings > API Keys (and Data API for the URL).
    Use the PUBLISHABLE key (or legacy "anon" key). NEVER the secret / service_role key. */
-const SUPABASE_URL = "https://cywdtmqkenwfjsmevepn.supabase.co"     // like https://abcd1234.supabase.co
-const SUPABASE_KEY = "sb_publishable_wGXVzoneuhWmOr34cKJruw_1i0_qxEl";  // starts with sb_publishable_ or eyJ...
+const SUPABASE_URL = "PASTE_YOUR_PROJECT_URL_HERE";      // like https://abcd1234.supabase.co
+const SUPABASE_KEY = "PASTE_YOUR_PUBLISHABLE_KEY_HERE";  // starts with sb_publishable_ or eyJ...
 /* =========================================================== */
 
 const FIELDS = ["call_date","customer","address","equipment_type","make","model","serial","filter_size",
